@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
-import { Client, CatalogItem, Proposal, Notification, UserProfile, Invoice, Language, ChatMessage, CalendarEvent, AuditEntry, HappinessLevel, Voucher, WidgetConfig, WidgetId, Toast, ToastType } from '../types';
+import { Client, CatalogItem, Proposal, Notification, UserProfile, Invoice, Language, ChatMessage, CalendarEvent, AuditEntry, HappinessLevel, Voucher, WidgetConfig,  Toast, ToastType } from '../types';
 import { API } from '../services/api.ts';
 import { translations } from '../services/translations.ts';
 

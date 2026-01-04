@@ -4,18 +4,18 @@ import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Plus, X, Trash2, DollarSign, Edit2, ChevronDown, 
-  Calculator, UserPlus, CheckCircle2, History,
-  ShieldCheck, Send, MessageSquareText,
-  Sparkles, Loader2, Copy, Check, FileText, ChevronRight, MoreVertical,
-  Calendar, Trash, ArrowRight, Zap
+  Calculator, UserPlus,
+  ShieldCheck, 
+  Sparkles,  FileText, 
+ Trash,  Zap
 } from 'lucide-react';
-import { Invoice, InvoiceTemplate, InvoiceItem } from '../types.ts';
+import { Invoice, InvoiceItem } from '../types.ts';
 import { useBusiness } from '../context/BusinessContext.tsx';
-import { API } from '../services/api.ts';
+
 import ConfirmationModal from './ConfirmationModal.tsx';
 import PdfSlideout from './PdfSlideout.tsx';
 import TemporalPicker from './TemporalPicker.tsx';
-import { Badge, Button, Heading, Card, Input, Select, EmptyState, Label, PriceInput } from './ui/Primitives.tsx';
+import { Badge, Button, Heading, Card, Input,  EmptyState, Label, PriceInput } from './ui/Primitives.tsx';
 
 const CustomSelect = ({ label, value, options, onChange, onAction, actionLabel, icon: Icon }: any) => {
   const [isOpen, setIsOpen] = useState(false);

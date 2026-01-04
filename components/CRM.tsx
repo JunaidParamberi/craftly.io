@@ -2,22 +2,22 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  Plus, Mail, Edit2, X, UserCheck, Trash2, Users, Search, 
-  Smile, Meh, Frown, Send, Sparkles, 
-  Loader2, CheckCircle2, ShieldCheck, 
+  Plus, Mail, Edit2, X, UserCheck, Trash2,  Search, 
+ Sparkles, 
+  Loader2, 
   MessageSquare, CheckSquare, Square, Filter,
-  Phone, Image as ImageIcon, Download,
-  Upload, RefreshCw, Clipboard, ArrowRight, Zap, Copy,
+  Image as ImageIcon, 
+  Upload, RefreshCw,  Zap, 
   Check
 } from 'lucide-react';
 import { Client } from '../types';
 import { useBusiness } from '../context/BusinessContext.tsx';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, } from '@google/genai';
 import ConfirmationModal from './ConfirmationModal.tsx';
-import { Input, Button, Heading, Card, Badge, EmptyState, Select, Label } from './ui/Primitives.tsx';
+import { Input, Button, Heading, Card, Badge,  Select, Label } from './ui/Primitives.tsx';
 
 const CRM: React.FC = () => {
-  const { clients, setClients, addClient, updateClient, pushNotification, addAuditLog, userProfile, campaignAsset, setCampaignAsset, showToast } = useBusiness();
+  const { clients, setClients, addClient, updateClient,  addAuditLog, userProfile, campaignAsset, setCampaignAsset, showToast } = useBusiness();
   const [activeTab, setActiveTab] = useState<'list' | 'campaigns'>('list');
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingId] = useState<Client | null>(null);
@@ -25,7 +25,7 @@ const CRM: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Campaign Engine State
-  const [isCampaigning, setIsCampaigning] = useState(false);
+
   const [campaignChannel, setCampaignChannel] = useState<'EMAIL' | 'WHATSAPP'>('EMAIL');
   const [campaignData, setCampaignData] = useState({ subject: '', body: '', targetStatus: 'ALL' });
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
@@ -51,7 +51,7 @@ const CRM: React.FC = () => {
     contactPerson: '', phone: '', countryCode: '+971', address: '', taxId: ''
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
 
   const eligibleRecipients = clients.filter(c => 
     campaignData.targetStatus === 'ALL' || c.status === campaignData.targetStatus
@@ -99,22 +99,46 @@ const CRM: React.FC = () => {
       showToast('AI node unreachable', 'error');
     } finally { setIsAiGenerating(false); }
   };
+const generateVisualAsset = async () => {
+  if (!campaignData.subject) { 
+    showToast('Subject required for visual sync', 'error'); 
+    return; 
+  }
+  
+  setIsGeneratingPoster(true);
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const parts: any[] = [{ text: `High-end marketing poster for: ${campaignData.subject}. Aspect ratio: ${aspectRatio}. Professional and sleek.` }];
+    
+    if (attachedImage) {
+      parts.push({ inlineData: { data: attachedImage.data, mimeType: attachedImage.mimeType } });
+    }
 
-  const generateVisualAsset = async () => {
-    if (!campaignData.subject) { showToast('Subject required for visual sync', 'error'); return; }
-    setIsGeneratingPoster(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const parts: any[] = [{ text: `High-end marketing poster for: ${campaignData.subject}. Aspect ratio: ${aspectRatio}. Professional and sleek.` }];
-      if (attachedImage) parts.push({ inlineData: { data: attachedImage.data, mimeType: attachedImage.mimeType } });
-      const res = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: { parts },
-        config: { imageConfig: { aspectRatio: aspectRatio as any } }
-      });
-      for (const part of res.candidates[0].content.parts) if (part.inlineData) setCampaignAsset(`data:image/png;base64,${part.inlineData.data}`);
-    } finally { setIsGeneratingPoster(false); }
-  };
+    const res = await ai.models.generateContent({
+      model: 'gemini-1.5-flash', // Note: Ensure the model name is correct for your tier
+      contents: { parts },
+    });
+
+    // FIX: Add checks for candidates and content
+    const candidate = res?.candidates?.[0];
+    const contentParts = candidate?.content?.parts;
+
+    if (contentParts) {
+      for (const part of contentParts) {
+        if (part.inlineData) {
+          setCampaignAsset(`data:image/png;base64,${part.inlineData.data}`);
+        }
+      }
+    } else {
+      showToast('AI returned an empty response', 'error');
+    }
+  } catch (error) {
+    console.error(error);
+    showToast('Generation failed', 'error');
+  } finally {
+    setIsGeneratingPoster(false);
+  }
+};
 
   const useAsReference = () => {
     if (!campaignAsset) return;

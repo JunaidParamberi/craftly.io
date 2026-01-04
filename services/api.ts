@@ -1,7 +1,7 @@
 
 import { 
   Client, CatalogItem, Proposal, 
-  Notification, UserProfile, Invoice, Voucher, ChatMessage, CalendarEvent, AuditEntry 
+  Notification, UserProfile, Invoice,  ChatMessage, CalendarEvent, AuditEntry 
 } from '../types';
 
 const STORAGE_KEYS = {
