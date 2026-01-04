@@ -1,0 +1,8 @@
+{
+  "name": "Craftly Professional Workspace",
+  "description": "Unified business system for freelancers: Invoicing, CRM, Milestones, and AI-Powered Strategy.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Craftly | Enterprise Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              accent: {
+                primary: '#6366F1',
+                secondary: '#818CF8'
+              },
+              slate: {
+                950: '#020617', // Deep Canvas
+                900: '#0B1120', // Surface
+                850: '#111827', // Inset/Inputs
+                800: '#1E293B'  // Borders
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+      
+      :root {
+        --bg-canvas: #F8FAFC;
+        --bg-card: #FFFFFF;
+        --bg-card-muted: #F1F5F9;
+        --text-primary: #0F172A;
+        --text-secondary: #64748B;
+        --accent: #6366F1;
+        --border-ui: #E2E8F0;
+        --input-bg: #FFFFFF;
+      }
+
+      .dark {
+        --bg-canvas: #020617;
+        --bg-card: #0B1120;
+        --bg-card-muted: #111827;
+        --text-primary: #F8FAFC;
+        --text-secondary: #94A3B8;
+        --accent: #818CF8;
+        --border-ui: #1E293B;
+        --input-bg: #020617;
+      }
+
+      body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: var(--bg-canvas);
+        color: var(--text-primary);
+        height: 100vh;
+        overflow: hidden;
+        line-height: 1.6; /* Global Relaxed Leading */
+      }
+
+      .custom-scroll::-webkit-scrollbar { width: 4px; }
+      .custom-scroll::-webkit-scrollbar-thumb { background: var(--border-ui); border-radius: 10px; }
+
+      .exec-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(2, 6, 23, 0.85);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+      }
+
+      .exec-modal-container {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-ui);
+        border-radius: 1.25rem;
+        width: 100%;
+        max-width: 600px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+
+      .exec-input, .exec-select, .exec-textarea {
+        width: 100%;
+        background-color: var(--input-bg);
+        border: 1px solid var(--border-ui);
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        outline: none;
+        transition: all 0.2s;
+        line-height: 1.5;
+      }
+
+      .exec-input:focus, .exec-select:focus, .exec-textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.05);
+      }
+
+      .exec-label {
+        display: block;
+        font-size: 0.625rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--text-secondary);
+        opacity: 0.6;
+        margin-bottom: 0.5rem;
+        margin-left: 0.25rem;
+      }
+
+      @keyframes enter {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-enter { animation: enter 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+      
+      @keyframes pop-in {
+        0% { opacity: 0; transform: scale(0.97); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+      .animate-pop-in { animation: pop-in 0.2s ease-out; }
+
+      /* Custom Price Input Spinners Hiding */
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type=number] {
+        -moz-appearance: textfield;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "jspdf": "https://esm.sh/jspdf@^4.0.0",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "marked": "https://esm.sh/marked@^17.0.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
