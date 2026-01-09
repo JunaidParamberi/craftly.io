@@ -25,7 +25,7 @@ const THEME_MODES: { id: Theme; icon: any; label: string }[] = [
   { id: 'system', icon: Monitor, label: 'Auto' }
 ];
 
-const MOBILE_NAV_ITEMS: { path: string; label: string; icon: any; roles?: UserRole[]; permission?: string }[] = [
+const MOBILE_NAV_ITEMS: { path: string; label: string; icon: any; roles?: UserRole[]; permission?: string; permissions?: string[] }[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'OWNER', 'EMPLOYEE', 'CLIENT'] },
   { path: '/team-chat', label: 'Team Hub', icon: MessageCircle, roles: ['SUPER_ADMIN', 'OWNER', 'EMPLOYEE'] },
   { path: '/projects', label: 'Projects', icon: Briefcase, permission: 'MANAGE_PROJECTS' },
@@ -34,7 +34,7 @@ const MOBILE_NAV_ITEMS: { path: string; label: string; icon: any; roles?: UserRo
 ];
 
 const MORE_MENU_ACTIONS = [
-  { path: '/clients', label: 'Clients', icon: Users, permission: 'MANAGE_CLIENTS' },
+  { path: '/clients', label: 'Clients', icon: Users, permissions: ['MANAGE_CLIENTS', 'MANAGE_CAMPAIGNS'] },
   { path: '/lpo', label: 'LPOs', icon: Receipt, permission: 'MANAGE_FINANCE' },
   { path: '/reports', label: 'Reports', icon: BarChart3, permission: 'MANAGE_FINANCE' },
   { path: '/services', label: 'Services', icon: Box, permission: 'MANAGE_CATALOG' },
@@ -135,6 +135,7 @@ const MainLayout: React.FC = () => {
     const userPermissions = userProfile?.permissions || [];
     return MOBILE_NAV_ITEMS.filter(item => {
       if (isOwner) return true;
+      if (item.permissions) return item.permissions.some(p => userPermissions.includes(p));
       if (item.permission) return userPermissions.includes(item.permission);
       if (item.roles) {
         const uRole = (userProfile?.role || 'EMPLOYEE').toUpperCase();
@@ -148,6 +149,7 @@ const MainLayout: React.FC = () => {
     const userPermissions = userProfile?.permissions || [];
     return MORE_MENU_ACTIONS.filter(item => {
       if (isOwner) return true;
+      if (item.permissions) return item.permissions.some(p => userPermissions.includes(p));
       if (item.permission) return userPermissions.includes(item.permission);
       if (item.roles) {
         const uRole = (userProfile?.role || 'EMPLOYEE').toUpperCase();

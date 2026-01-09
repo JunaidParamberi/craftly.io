@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Briefcase, CreditCard, 
@@ -14,7 +14,7 @@ import ConfirmationModal from '../ConfirmationModal';
 
 const allNavItems = [
   { path: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'OWNER', 'EMPLOYEE', 'CLIENT'] },
-  { path: '/clients', labelKey: 'clients', icon: Users, permission: 'MANAGE_CLIENTS' },
+  { path: '/clients', labelKey: 'clients', icon: Users, permissions: ['MANAGE_CLIENTS', 'MANAGE_CAMPAIGNS'] },
   { path: '/projects', labelKey: 'projects', icon: Briefcase, permission: 'MANAGE_PROJECTS' },
   { path: '/invoices', labelKey: 'invoices', icon: CreditCard, permission: 'MANAGE_FINANCE' },
   { path: '/lpo', labelKey: 'lpo_registry', icon: Receipt, permission: 'MANAGE_FINANCE' },
@@ -42,25 +42,33 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, width, onResiz
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   
   const currentRole = userProfile?.role || 'EMPLOYEE';
-  const userPermissions = userProfile?.permissions || [];
   const isOwner = currentRole === 'OWNER' || currentRole === 'SUPER_ADMIN';
+  
+  // Robust re-calculation when permissions change
+  const filteredNavItems = useMemo(() => {
+    const userPermissions = userProfile?.permissions || [];
+    return allNavItems.filter(item => {
+      // 1. Owners/Admins see everything
+      if (isOwner) return true;
+      
+      // 2. Check multi-permission requirement (ANY of)
+      if ((item as any).permissions) {
+        return (item as any).permissions.some((p: string) => userPermissions.includes(p));
+      }
 
-  const filteredNavItems = allNavItems.filter(item => {
-    // 1. Owners/Admins see everything
-    if (isOwner) return true;
-    
-    // 2. Check explicit permission requirement
-    if (item.permission) {
-      return userPermissions.includes(item.permission);
-    }
-    
-    // 3. Check role fallback
-    if (item.roles) {
-      return item.roles.includes(currentRole);
-    }
-    
-    return false;
-  });
+      // 3. Check explicit single permission requirement
+      if ((item as any).permission) {
+        return userPermissions.includes((item as any).permission);
+      }
+      
+      // 4. Check role fallback
+      if (item.roles) {
+        return item.roles.includes(currentRole);
+      }
+      
+      return false;
+    });
+  }, [userProfile?.role, JSON.stringify(userProfile?.permissions), isOwner, currentRole]);
 
   const handleLogout = async () => {
     try {
@@ -134,7 +142,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, width, onResiz
         <div className="px-2 py-4 flex items-center gap-3">
            <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0 border border-[var(--border-ui)]">
              {userProfile?.avatarUrl ? (
-               <img src={userProfile.avatarUrl} className="w-full h-full object-cover" />
+               <img src={userProfile.avatarUrl} className="w-full h-full object-cover" alt="User" />
              ) : (
                <UserCircle size={20} className="m-auto mt-1 text-slate-400" />
              )}
@@ -157,19 +165,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, width, onResiz
           )}
         </button>
       </div>
-
-      {!isCollapsed && (
-        <div 
-          onMouseDown={onResizeStart}
-          className={`
-            absolute top-0 right-0 w-1 h-full cursor-col-resize group z-[100]
-            hover:bg-indigo-500/50 transition-colors
-            ${isResizing ? 'bg-indigo-500' : ''}
-          `}
-        >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-8 bg-indigo-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-      )}
 
       <ConfirmationModal
         isOpen={isLogoutConfirmOpen}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, UserPlus, X, Mail, 
@@ -7,7 +6,7 @@ import {
   AlertCircle, CheckCircle2, Send, Copy, Check,
   User as UserIcon, MoreHorizontal, Clock,
   ChevronRight, ArrowUpRight, Circle, Shield,
-  Users, Briefcase, CreditCard, Receipt, Box, Sparkles
+  Users, Briefcase, CreditCard, Receipt, Box, Sparkles, Megaphone
 } from 'lucide-react';
 import { useBusiness } from '../context/BusinessContext.tsx';
 import { UserProfile, UserRole } from '../types.ts';
@@ -24,6 +23,7 @@ const PERMISSION_NODES = [
   { id: 'MANAGE_FINANCE', label: 'Fiscal Ledger', icon: CreditCard, description: 'Authorized for invoices and LPO nodes.' },
   { id: 'MANAGE_EXPENSES', label: 'Voucher Hub', icon: Receipt, description: 'Audit and record overhead vouchers.' },
   { id: 'MANAGE_CATALOG', label: 'Asset Index', icon: Box, description: 'Configure services and catalog resources.' },
+  { id: 'MANAGE_CAMPAIGNS', label: 'Campaign Studio', icon: Megaphone, description: 'Design and broadcast strategic marketing campaigns.' },
   { id: 'MANAGE_PROVISIONING', label: 'Authority Core', icon: Shield, description: 'Provision new operatives to the registry.' },
   { id: 'ACCESS_AI', label: 'Neural Link', icon: Sparkles, description: 'Access AI strategy and insight engines.' },
 ];

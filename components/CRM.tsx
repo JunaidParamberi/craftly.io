@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -56,6 +55,10 @@ const CRM: React.FC = () => {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
+  // Clearance Checks
+  const isOwner = userProfile?.role === 'OWNER' || userProfile?.role === 'SUPER_ADMIN';
+  const hasCampaignPermission = isOwner || (userProfile?.permissions || []).includes('MANAGE_CAMPAIGNS');
+
   // Campaign Core State
   const [campaignChannel, setCampaignChannel] = useState<'EMAIL' | 'WHATSAPP'>('EMAIL');
   const [campaignData, setCampaignData] = useState({ subject: '', body: '', targetStatus: 'ALL' });
@@ -376,12 +379,14 @@ const CRM: React.FC = () => {
             >
               Registry
             </button>
-            <button 
-              onClick={() => setActiveTab('campaigns')} 
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'campaigns' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
-            >
-              Campaign Engine
-            </button>
+            {hasCampaignPermission && (
+              <button 
+                onClick={() => setActiveTab('campaigns')} 
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'campaigns' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+              >
+                Campaign Engine
+              </button>
+            )}
           </div>
         </div>
 

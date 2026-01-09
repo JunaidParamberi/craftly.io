@@ -99,7 +99,7 @@ export const initializeTenant = onCall(functionOptions, async (request) => {
     ...request.data,
     id: request.auth.uid,
     role: 'OWNER',
-    permissions: ['MANAGE_CLIENTS', 'MANAGE_PROJECTS', 'MANAGE_FINANCE', 'MANAGE_EXPENSES', 'MANAGE_CATALOG', 'MANAGE_PROVISIONING', 'ACCESS_AI'],
+    permissions: ['MANAGE_CLIENTS', 'MANAGE_PROJECTS', 'MANAGE_FINANCE', 'MANAGE_EXPENSES', 'MANAGE_CATALOG', 'MANAGE_PROVISIONING', 'ACCESS_AI', 'MANAGE_CAMPAIGNS'],
     onboarded: true,
     status: 'ONLINE'
   });
