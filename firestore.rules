@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- HELPER FUNCTIONS ---
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'super_admin' || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN'
+      );
+    }
+
+    // Checks if the user belongs to the specified companyId.
+    // Tries to use the Auth Token claim first (performant), falls back to checking the User document.
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && (
+        request.auth.token.companyId == companyId || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId
+      );
+    }
+
+    // --- COLLECTION RULES ---
+
+    match /users/{userId} {
+      // Users can read their own profile.
+      // Users can list other users in the SAME company.
+      allow get: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow list: if isAuthenticated() && (
+        isSuperAdmin() || 
+        belongsToCompany(resource.data.companyId)
+      );
+      
+      // Allow users to create or update their own profile document.
+      allow create, update: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+    
+    // Multi-tenant ERP Data Scoping
+    match /{collectionName}/{docId} {
+      
+      // READ, UPDATE, DELETE: 
+      // Rule allows 'list' operations (queries) if the query filter exactly matches the companyId requirement.
+      allow read, update, delete: if isSuperAdmin() || (
+        resource != null && belongsToCompany(resource.data.companyId)
+      );
+
+      // CREATE: 
+      allow create: if isSuperAdmin() || (
+        request.resource != null && belongsToCompany(request.resource.data.companyId)
+      );
+    }
+
+    match /pending_invites/{token} {
+      allow read: if true; // Needed to verify invite before signup
+      allow write: if isSuperAdmin();
+    }
+
+    match /mail/{mailId} {
+      // Basic mail permissions for the Email Module
+      allow read: if isAuthenticated() && (
+        resource.data.to == request.auth.token.email || 
+        resource.data.metadata.senderId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (
+        resource.data.metadata.senderId == request.auth.uid || 
+        isSuperAdmin()
+      );
+    }
+  }
+}

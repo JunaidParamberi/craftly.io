@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Craftly | Enterprise Workspace</title>
+    <link rel="shortcut icon" href="/public/favicon.ico" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -120,12 +121,23 @@
         to { opacity: 1; transform: translateY(0); }
       }
       .animate-enter { animation: enter 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+      @keyframes enter-left {
+        from { opacity: 0; transform: translateX(-100%); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      .animate-enter-left { animation: enter-left 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
       
       @keyframes pop-in {
         0% { opacity: 0; transform: scale(0.97); }
         100% { opacity: 1; transform: scale(1); }
       }
       .animate-pop-in { animation: pop-in 0.2s ease-out; }
+
+      @keyframes loading {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(300%); }
+      }
 
       /* Custom Price Input Spinners Hiding */
       input::-webkit-outer-spin-button,
@@ -152,7 +164,8 @@
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "jspdf": "https://esm.sh/jspdf@^4.0.0",
     "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
-    "marked": "https://esm.sh/marked@^17.0.1"
+    "marked": "https://esm.sh/marked@^17.0.1",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/"
   }
 }
 </script>

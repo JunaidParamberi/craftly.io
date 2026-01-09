@@ -41,6 +41,11 @@ const ProjectDetail: React.FC = () => {
     navigate('/lpo');
   };
 
+  const handleCreateInvoice = () => {
+    // Correctly passing project ID via search param to the Finance page
+    navigate(`/invoices?projectId=${proposal.id}`);
+  };
+
   return (
     <div className="space-y-10 animate-enter pb-24">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
@@ -50,7 +55,7 @@ const ProjectDetail: React.FC = () => {
           </button>
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <Badge variant={proposal.status === 'Accepted' ? 'success' : proposal.status === 'Sent' ? 'warning' : 'info'}>
+              <Badge variant={proposal.status === 'Accepted' ? 'success' : proposal.status === 'Sent' ? 'warning' : proposal.status === 'Pending Approval' ? 'warning' : 'info'}>
                 {proposal.status === 'Accepted' ? 'Active' : proposal.status}
               </Badge>
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Project ID: {proposal.id}</span>
@@ -63,7 +68,7 @@ const ProjectDetail: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-4">
-           {proposal.status !== 'Accepted' && (
+           {proposal.status !== 'Accepted' && proposal.status !== 'Pending Approval' && (
              <Button variant="outline" className="h-14" onClick={() => setIsPdfOpen(true)} icon={Send}>Send Proposal</Button>
            )}
            
@@ -74,7 +79,7 @@ const ProjectDetail: React.FC = () => {
            )}
            
            <Button variant="outline" className="h-14" icon={Layout} onClick={() => setIsPdfOpen(true)}>View PDF</Button>
-           <Button className="h-14 shadow-2xl" icon={CreditCard} onClick={() => navigate('/invoices')}>Create Invoice</Button>
+           <Button className="h-14 shadow-2xl" icon={CreditCard} onClick={handleCreateInvoice}>Create Invoice</Button>
         </div>
       </header>
 

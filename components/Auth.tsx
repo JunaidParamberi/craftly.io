@@ -1,92 +1,268 @@
 
-import React, { useState } from 'react';
-import { Mail, ArrowRight, Loader2, CheckCircle2, Fingerprint, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Mail, ArrowRight, Loader2, 
+  Fingerprint, ShieldCheck, Chrome, 
+  Apple, AlertCircle, ChevronLeft,
+  Lock, Globe, Zap, Circle
+} from 'lucide-react';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  sendEmailVerification,
+  signInWithPopup,
+  sendPasswordResetEmail,
+  reload
+} from 'firebase/auth';
+import { auth, googleProvider, appleProvider } from '../services/firebase.ts';
+import { Button, Input, Label } from './ui/Primitives.tsx';
 
-interface AuthProps {
-  onLogin: () => void;
-}
+type AuthView = 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD' | 'VERIFY_EMAIL';
 
-const Auth: React.FC<AuthProps> = ({ onLogin }) => {
+const Auth: React.FC = () => {
+  const [view, setView] = useState<AuthView>('LOGIN');
   const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSent, setIsSent] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    let interval: number | undefined;
+    if (view === 'VERIFY_EMAIL' && auth.currentUser && !auth.currentUser.emailVerified) {
+      interval = window.setInterval(async () => {
+        try {
+          if (auth.currentUser) {
+            await reload(auth.currentUser);
+            if (auth.currentUser.emailVerified) window.location.reload(); 
+          }
+        } catch (e) { console.error("Auth sync error:", e); }
+      }, 3000);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [view]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    setIsLoading(true);
+    setError(null);
+    setSuccessMsg(null);
 
-    setIsSubmitting(true);
-    // Simulate auth check
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSent(true);
-      // Fast transition to app view
-      setTimeout(onLogin, 800);
-    }, 1000);
+    try {
+      if (view === 'LOGIN') {
+        const userCred = await signInWithEmailAndPassword(auth, email, password);
+        if (!userCred.user.emailVerified) setView('VERIFY_EMAIL');
+      } else if (view === 'REGISTER') {
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(userCred.user);
+        setView('VERIFY_EMAIL');
+      } else if (view === 'FORGOT_PASSWORD') {
+        await sendPasswordResetEmail(auth, email);
+        setSuccessMsg('RECOVERY PACKET DISPATCHED.');
+        setTimeout(() => setView('LOGIN'), 3000);
+      }
+    } catch (err: any) {
+      const msg = err.code ? err.code.split('/')[1].replace(/-/g, ' ') : 'AUTH FAILURE';
+      setError(msg.toUpperCase());
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSocialAuth = async (provider: any) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err: any) {
+      setError(err.message.toUpperCase());
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#020617] flex items-center justify-center p-6 overflow-hidden relative">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none" />
+    <div className="min-h-screen w-full bg-[#020617] flex items-center justify-center p-0 lg:p-6 overflow-x-hidden relative font-sans">
+      {/* GLOBAL GRAPHICS LAYER: Visible on all devices */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
+         <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-indigo-600/10 blur-[100px] rounded-full animate-pulse [animation-delay:2s]" />
+         
+         {/* Animated Background Circles - Repositioned for Global use */}
+         <div className="absolute top-1/2 left-0 lg:left-[-10%] -translate-y-1/2 w-[800px] h-[800px] border-[40px] border-indigo-500/[0.03] rounded-full animate-[spin_60s_linear_infinite] opacity-50 lg:opacity-100" />
+         <div className="absolute top-1/2 left-12 lg:left-0 -translate-y-1/2 w-[600px] h-[600px] border-[10px] border-indigo-500/[0.02] rounded-full animate-[spin_40s_linear_infinite_reverse] opacity-30 lg:opacity-100" />
+      </div>
 
-      <div className="w-full max-w-sm animate-enter relative z-10">
-        <div className="bg-[#0F172A] border border-[#1E293B] p-10 text-center rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-          <div className="flex flex-col items-center mb-10">
-            <div className="w-14 h-14 bg-indigo-500 rounded-2xl mb-8 shadow-2xl shadow-indigo-500/30 flex items-center justify-center">
-               <Fingerprint size={28} className="text-white" />
+      {/* Main Container - Split View */}
+      <div className="w-full max-w-7xl min-h-screen lg:min-h-[600px] lg:h-auto lg:max-h-[90vh] bg-transparent lg:bg-[#0F172A] lg:rounded-[3.5rem] lg:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col lg:flex-row relative z-10 lg:border border-white/5 mx-auto">
+        
+        {/* LEFT PANEL: Artwork & Branding (Desktop Only) */}
+        <div className="hidden lg:flex lg:w-[50%] relative flex-col justify-between p-12 xl:p-16 overflow-hidden bg-gradient-to-br from-[#1E293B]/20 to-transparent">
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-10">
+               <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-2xl">
+                 <Zap size={22} className="text-white fill-white" />
+               </div>
+               <span className="text-xl font-black text-white tracking-tighter uppercase">Craftly</span>
             </div>
-            <h1 className="text-2xl font-black tracking-tighter text-white uppercase leading-none">Craftly Portal</h1>
-            <p className="text-[10px] font-black text-slate-500 mt-4 uppercase tracking-[0.3em]">Identity Verification Required</p>
+            
+            <div className="space-y-6 max-w-md">
+              <h1 className="text-5xl xl:text-6xl font-black text-white tracking-tighter uppercase leading-[0.9]">
+                Login into your <br/> <span className="text-indigo-500">Workspace</span>
+              </h1>
+              <p className="text-slate-400 font-medium text-lg leading-relaxed">
+                Let us synchronize your missions and scale your independent business nodes.
+              </p>
+            </div>
           </div>
 
-          {!isSent ? (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="text-left space-y-2.5">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1">Terminal Email</label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-400 transition-colors" size={16} />
-                  <input 
-                    type="email" 
-                    placeholder="you@company.com"
-                    className="w-full bg-[#020617] border border-[#1E293B] rounded-xl pl-12 pr-4 py-4 text-sm font-bold text-white outline-none focus:border-indigo-500 transition-all placeholder:text-slate-700"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoFocus
-                    required
-                  />
+          <div className="relative z-10 flex items-center gap-6 opacity-30">
+            <div className="flex items-center gap-2">
+               <Globe size={14} className="text-indigo-400" />
+               <span className="text-[10px] font-black uppercase tracking-widest text-white">Global Cloud Node 01</span>
+            </div>
+            <div className="w-1 h-1 rounded-full bg-slate-500" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-white">AES-256 Distributed</span>
+          </div>
+        </div>
+
+        {/* RIGHT PANEL: The Formal Node */}
+        <div className="flex-1 bg-[#020617]/40 lg:bg-[#0B1120] relative flex items-center justify-center p-6 lg:p-10 overflow-y-auto scrollbar-hide">
+          {/* Top Info for Mobile Only - Styled to match Terminal theme */}
+          <div className="lg:hidden absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-xl mb-1">
+                <Zap size={22} className="text-white fill-white" />
+             </div>
+             <span className="font-black uppercase tracking-[0.3em] text-white text-[10px] opacity-40">Craftly Node System</span>
+          </div>
+
+          <div className="w-full max-w-[400px] space-y-6 lg:space-y-8 animate-pop-in py-24 lg:py-0">
+            {view === 'VERIFY_EMAIL' ? (
+              <div className="text-center space-y-8">
+                 <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 mx-auto border border-emerald-500/20">
+                    <Mail size={32} />
+                 </div>
+                 <div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sync Pending</h2>
+                    <p className="text-sm text-slate-500 mt-2">Packet dispatched to {auth.currentUser?.email}. <br/> Awaiting verification ping...</p>
+                 </div>
+                 <div className="space-y-3">
+                    <div className="flex items-center justify-center gap-3 py-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
+                       <Loader2 size={16} className="animate-spin text-indigo-500" />
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Satellite Scanning...</span>
+                    </div>
+                    <button onClick={() => auth.signOut()} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:underline">Abort Connection</button>
+                 </div>
+              </div>
+            ) : view === 'FORGOT_PASSWORD' ? (
+              <div className="space-y-8">
+                <button onClick={() => setView('LOGIN')} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-indigo-500 transition-all group">
+                  <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Back to Terminal
+                </button>
+                <div>
+                   <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">Recover Key</h2>
+                   <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-3">Access restoration module</p>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                   <Input label="Registry Email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="IDENT@REGION.NET" className="h-14 font-bold !bg-[#020617]" />
+                   <Button type="submit" loading={isLoading} className="w-full h-14 bg-indigo-600 border-indigo-600 shadow-xl text-[11px] font-black uppercase tracking-widest">Initialize Reset</Button>
+                </form>
+                {successMsg && <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-[10px] font-bold text-emerald-500 uppercase tracking-widest text-center">{successMsg}</div>}
+              </div>
+            ) : (
+              <div className="space-y-6 lg:space-y-8">
+                <div className="space-y-2">
+                   <h2 className="text-3xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">
+                     {view === 'LOGIN' ? 'Terminal Login' : 'New Registry'}
+                   </h2>
+                   <p className="text-sm text-slate-500 font-medium">Access your strategic consultancy nodes.</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-5">
+                   <div className="space-y-4">
+                      <Input 
+                        label="Email Address" 
+                        type="email" 
+                        required 
+                        value={email} 
+                        onChange={e => setEmail(e.target.value)} 
+                        placeholder="name@example.com" 
+                        className="h-12 lg:h-14 !bg-[#020617] !border-white/5 focus:!border-indigo-500"
+                      />
+                      <div className="space-y-2">
+                         <div className="flex justify-between items-center px-1">
+                            <Label>Password</Label>
+                            {view === 'LOGIN' && (
+                              <button type="button" onClick={() => setView('FORGOT_PASSWORD')} className="text-[9px] font-black text-indigo-500 hover:underline uppercase tracking-widest">Lost Key?</button>
+                            )}
+                         </div>
+                         <Input 
+                          type={showPassword ? 'text' : 'password'} 
+                          required 
+                          value={password} 
+                          onChange={e => setPassword(e.target.value)} 
+                          placeholder="Your access secret"
+                          className="h-12 lg:h-14 !bg-[#020617] !border-white/5 focus:!border-indigo-500"
+                          rightIcon={Zap}
+                          onRightIconClick={() => setShowPassword(!showPassword)}
+                         />
+                      </div>
+                   </div>
+
+                   {error && (
+                     <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-500 text-[10px] font-bold uppercase tracking-widest animate-pop-in">
+                       <AlertCircle size={14}/> {error}
+                     </div>
+                   )}
+
+                   <div className="pt-2">
+                      <Button 
+                        type="submit" 
+                        loading={isLoading} 
+                        className="w-full h-14 bg-indigo-600 border-indigo-600 shadow-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-[0.98]"
+                      >
+                        {view === 'LOGIN' ? 'Initiate Link' : 'Initialize Node'}
+                      </Button>
+                   </div>
+                </form>
+
+                <div className="relative py-2 flex items-center">
+                   <div className="flex-1 h-px bg-white/5" />
+                   <span className="mx-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Secure Cloud Auth</span>
+                   <div className="flex-1 h-px bg-white/5" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                   <button onClick={() => handleSocialAuth(googleProvider)} className="flex items-center justify-center gap-3 h-12 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest text-white">
+                      <Chrome size={16} className="text-indigo-500" /> Google
+                   </button>
+                   <button onClick={() => handleSocialAuth(appleProvider)} className="flex items-center justify-center gap-3 h-12 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest text-white">
+                      <Apple size={16} /> Apple
+                   </button>
+                </div>
+
+                <div className="text-center pt-2">
+                  <button 
+                    onClick={() => setView(view === 'LOGIN' ? 'REGISTER' : 'LOGIN')} 
+                    className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-500 transition-colors"
+                  >
+                    {view === 'LOGIN' ? (
+                      <span className="flex items-center justify-center gap-2">No active node? <span className="text-indigo-600">Join Registry</span></span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">Existing Node? <span className="text-indigo-600">Sync Terminal</span></span>
+                    )}
+                  </button>
                 </div>
               </div>
-              <button 
-                type="submit"
-                disabled={isSubmitting || !email}
-                className="w-full bg-indigo-500 text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
-              >
-                {isSubmitting ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <>
-                    Initialize Session
-                    <ArrowRight size={14} />
-                  </>
-                )}
-              </button>
-            </form>
-          ) : (
-            <div className="py-6 flex flex-col items-center gap-6">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <CheckCircle2 size={32} />
-              </div>
-              <div className="space-y-3">
-                <p className="text-lg font-black text-white uppercase tracking-tight">Access Granted</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Syncing Workspace...</p>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          <div className="mt-10 pt-8 border-t border-slate-800/50 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-widest">
-               <ShieldCheck size={14} className="text-emerald-500" /> AES-256 Protected
-            </div>
+          {/* Secure Session Footer */}
+          <div className="absolute bottom-8 lg:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 text-slate-600 pointer-events-none w-full justify-center">
+             <ShieldCheck size={14} />
+             <span className="text-[8px] font-black uppercase tracking-[0.3em]">End-to-End Encrypted Session</span>
           </div>
         </div>
       </div>

@@ -1,9 +1,8 @@
-
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  X, Loader2, CheckCircle2, Download, Send, FileText, Edit2, Save, Trash2, Plus,
-  MessageSquare, ClipboardCheck, Zap, Mail, ArrowRight
+  X, Loader2, CheckCircle2, Download, FileText, Edit2, Save, Trash2, Plus,
+  MessageSquare, Zap, Mail, Link as LinkIcon
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -75,68 +74,58 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [invoice, isEditing]);
 
-  const handleDownloadPdf = async () => {
-    if (!pdfRef.current || !localInvoice) return;
+  const handleDownloadPdf = async (autoClose = false): Promise<boolean> => {
+    if (!pdfRef.current || !localInvoice) return false;
     setIsExporting(true);
     try {
       const canvas = await html2canvas(pdfRef.current, { 
-        scale: 3, 
+        scale: 2, 
         useCORS: true, 
-        logging: false,
+        allowTaint: true,
         backgroundColor: '#ffffff'
       });
-      
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`${localInvoice.id}_v${localInvoice.version}.pdf`);
-      setExportDone(true);
-      setTimeout(() => setExportDone(false), 3000);
-    } catch (e) { console.error(e); } finally { setIsExporting(false); }
-  };
-
-  const syncToClipboard = async () => {
-    if (!pdfRef.current) return false;
-    try {
-      const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-      const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/png'));
-      if (blob) {
-        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-        return true;
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, (canvas.height * 210) / canvas.width);
+      pdf.save(`${localInvoice.id}.pdf`);
+      if (!autoClose) {
+        setExportDone(true);
+        setTimeout(() => setExportDone(false), 3000);
       }
-    } catch (err) {
-      console.error('Clipboard sync failed', err);
+      return true;
+    } catch (e) { 
+      console.error(e); 
+      return false;
+    } finally { 
+      setIsExporting(false); 
     }
-    return false;
   };
 
   const handleTransmit = async () => {
     if (!localInvoice) return;
     setIsSending(true);
-    
     try {
-      // 1. Snapshot & Sync
-      const synced = await syncToClipboard();
-      if (!synced) showToast('Clipboard sync failed', 'error');
+      const baseAppUrl = window.location.href.split('#')[0];
+      const docPath = localInvoice.type === 'LPO' ? 'lpo' : 'invoices';
+      const deepLink = `${baseAppUrl}#/${docPath}/${localInvoice.id}`;
+      await navigator.clipboard.writeText(deepLink);
+      await handleDownloadPdf(true);
 
-      // 2. Open Terminal
-      const subject = `${localInvoice.type} #${localInvoice.id} from ${userProfile.companyName}`;
-      const body = `Hello ${localInvoice.clientId},\n\nPlease find attached ${localInvoice.type} #${localInvoice.id} for the amount of ${localInvoice.currency} ${total.toLocaleString()}.\n\n(Note: The document has been copied to your clipboard. Simply hit Ctrl+V in this message to attach the visual copy.)`;
+      const subject = `${localInvoice.type} #${localInvoice.id} from ${userProfile?.companyName || 'Craftly'}`;
+      const body = `Hello ${localInvoice.clientId},\n\nPlease find your ${localInvoice.type} #${localInvoice.id} for the amount of ${localInvoice.currency} ${total.toLocaleString()}.\n\nDIGITAL VIEWING LINK:\n${deepLink}\n\n(Note: I have attached the PDF version of this document for your records. Please check the email attachments.)\n\nBest regards,\n${userProfile?.fullName}\n${userProfile?.companyName}`;
 
       if (dispatchMode === 'WHATSAPP' && client?.phone) {
         const url = `https://wa.me/${client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(body)}`;
         window.open(url, '_blank');
       } else {
-        const url = `mailto:${localInvoice.clientEmail || client?.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        const mailtoRecipient = localInvoice.clientEmail || client?.email || '';
+        const url = `mailto:${mailtoRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         window.location.href = url;
       }
 
-      // 3. Finalize
       updateInvoice({ ...localInvoice, status: 'Sent' });
-      pushNotification({ title: 'Terminal Dispatched', description: `Syncing ${localInvoice.id} payload.`, type: 'finance' });
-      showToast('Payload Ready to Paste (Ctrl+V)', 'info');
+      pushNotification({ title: 'Terminal Dispatched', description: `Syncing ${localInvoice.id} via link & PDF.`, type: 'finance' });
+      showToast('PDF Downloaded & Link Synced', 'success');
     } finally {
       setIsSending(false);
     }
@@ -209,15 +198,21 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
               </button>
             </>
           ) : (
-            <button type="button" onClick={() => setIsEditing(true)} className="h-10 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer">
-              <Edit2 size={16} /> <span className="text-[10px] font-bold uppercase tracking-widest">Edit</span>
-            </button>
+            <>
+              <button type="button" onClick={() => handleDownloadPdf()} className="h-10 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer">
+                {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} 
+                <span className="text-[10px] font-bold uppercase tracking-widest">Download PDF</span>
+              </button>
+              <button type="button" onClick={() => setIsEditing(true)} className="h-10 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer">
+                <Edit2 size={16} /> <span className="text-[10px] font-bold uppercase tracking-widest">Edit</span>
+              </button>
+            </>
           )}
 
           {!isEditing && (
             <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-xl border border-white/5">
-              <button onClick={() => setDispatchMode('EMAIL')} className={`p-2 rounded-lg transition-all ${dispatchMode === 'EMAIL' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-white'}`}><Mail size={16}/></button>
-              <button onClick={() => setDispatchMode('WHATSAPP')} className={`p-2 rounded-lg transition-all ${dispatchMode === 'WHATSAPP' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:text-white'}`}><MessageSquare size={16}/></button>
+              <button onClick={() => setDispatchMode('EMAIL')} className={`p-2 rounded-lg transition-all ${dispatchMode === 'EMAIL' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`} title="Email Dispatch"><Mail size={16}/></button>
+              <button onClick={() => setDispatchMode('WHATSAPP')} className={`p-2 rounded-lg transition-all ${dispatchMode === 'WHATSAPP' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`} title="WhatsApp Dispatch"><MessageSquare size={16}/></button>
               <div className="w-px h-6 bg-white/10 mx-1" />
               <button 
                 onClick={handleTransmit} 
@@ -225,7 +220,7 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
                 className={`h-10 px-6 rounded-lg font-black uppercase text-[9px] tracking-widest transition-all flex items-center gap-3 shadow-2xl ${isSending ? 'bg-indigo-500 animate-pulse' : dispatchMode === 'WHATSAPP' ? 'bg-emerald-600' : 'bg-indigo-600'} text-white`}
               >
                 {isSending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                {isSending ? 'Syncing...' : 'Dispatch & Sync'}
+                {isSending ? 'Transmitting...' : 'Dispatch & Link'}
               </button>
             </div>
           )}
@@ -233,66 +228,78 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
       </header>
 
       <div ref={containerRef} className="flex-1 overflow-y-auto bg-slate-200/50 flex flex-col items-center py-10 relative">
-        {isSending && (
-          <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
-             <div className="bg-slate-900 p-8 rounded-[2rem] border border-white/5 shadow-2xl flex flex-col items-center gap-6 animate-pop-in">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-2xl animate-pulse">
-                   <Zap size={32} />
-                </div>
-                <div className="text-center">
-                   <h4 className="text-sm font-black uppercase tracking-widest">Terminal Sync in Progress</h4>
-                   <p className="text-[10px] text-slate-500 uppercase font-bold mt-2">Document payload syncing to system clipboard</p>
-                </div>
-             </div>
-          </div>
-        )}
-
         <div style={{ width: `${794 * previewScale}px`, height: `${1123 * previewScale}px` }} className={`relative transition-all duration-300 ${isEditing ? 'ring-8 ring-indigo-500/20' : 'shadow-2xl'}`}>
           <div ref={pdfRef} style={{ width: '794px', minHeight: '1123px', transform: `scale(${previewScale})`, transformOrigin: 'top left' }} className="bg-white flex flex-col font-sans text-slate-800 absolute top-0 left-0 p-[80px]">
-            <div className="flex justify-between items-start mb-16">
-              <div className="w-1/2">
-                <div className="w-48 h-20 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 flex items-center justify-center">
-                   {userProfile.branding.logoUrl ? <img src={userProfile.branding.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" /> : <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Logo</span>}
-                </div>
+            
+            {/* BRANDING HEADER - CONSOLIDATED LOGIC (NO LOGO = SHOW DETAILS, ELSE LOGO ONLY) */}
+            <div className="flex justify-between items-start mb-16 border-b-4 border-slate-900 pb-12">
+              <div className="w-2/3">
+                {userProfile?.branding?.logoUrl ? (
+                  <div className="h-24 flex items-center justify-start overflow-hidden">
+                    <img src={userProfile.branding.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain block" crossOrigin="anonymous" />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <h2 className="text-3xl font-black uppercase tracking-tighter text-slate-900 leading-none mb-4">{userProfile?.companyName}</h2>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight max-w-[320px]">{userProfile?.branding?.address}</p>
+                      {userProfile?.branding?.trn && (
+                        <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">TRN: {userProfile.branding.trn}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="text-right">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Number</div>
-                <div className="text-2xl font-mono text-slate-900">{isEditing ? <input className="bg-slate-50 border border-slate-200 p-1 text-right w-32 focus:outline-indigo-500" value={localInvoice.id} onChange={e => { setLocalInvoice({...localInvoice, id: e.target.value.toUpperCase()}); setHasChanges(true); }} /> : `#${localInvoice.id}`}</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">Serial Node</div>
+                <div className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
+                  {isEditing ? (
+                    <input className="bg-slate-50 border border-slate-200 p-1 text-right w-32 focus:outline-indigo-500" value={localInvoice.id} onChange={e => { setLocalInvoice({...localInvoice, id: e.target.value.toUpperCase()}); setHasChanges(true); }} />
+                  ) : `#${localInvoice.id}`}
+                </div>
               </div>
             </div>
 
-            <h1 className="text-7xl font-extrabold uppercase tracking-tighter mb-4 text-slate-900">{localInvoice.type}</h1>
-            <div className="mb-20 flex items-center gap-2">
-              <span className="font-bold text-slate-400 uppercase text-[11px] tracking-widest">Date:</span>
-              {isEditing ? <input type="date" className="bg-slate-50 border border-slate-200 p-1 text-lg font-bold text-slate-900" value={localInvoice.date} onChange={e => { setLocalInvoice({...localInvoice, date: e.target.value}); setHasChanges(true); }} /> : <span className="text-lg font-bold text-slate-900">{new Date(localInvoice.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</span>}
+            <div className="flex justify-between items-end mb-16">
+              <div>
+                <h1 className="text-7xl font-black uppercase tracking-tighter text-slate-900 leading-none">{localInvoice.type}</h1>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">Timestamp</div>
+                {isEditing ? (
+                  <input type="date" className="bg-slate-50 border border-slate-200 p-1 text-lg font-bold text-slate-900" value={localInvoice.date} onChange={e => { setLocalInvoice({...localInvoice, date: e.target.value}); setHasChanges(true); }} />
+                ) : (
+                  <span className="text-lg font-black text-slate-900 uppercase">{new Date(localInvoice.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-20 mb-20">
               <div>
-                <h4 className="font-bold text-slate-400 mb-6 uppercase text-[10px] tracking-[0.2em]">To:</h4>
+                <h4 className="font-black text-slate-900 mb-6 uppercase text-[10px] tracking-[0.3em] border-b border-slate-100 pb-2">Target Registry (To)</h4>
                 <div className="space-y-1">
-                  <p className="text-xl font-extrabold text-slate-900 uppercase tracking-tight">{client?.name || localInvoice.clientId}</p>
-                  <p className="text-sm text-slate-500 whitespace-pre-wrap leading-relaxed">{client?.address}</p>
-                  <p className="text-sm text-slate-500">{client?.email || localInvoice.clientEmail}</p>
+                  <p className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">{client?.name || localInvoice.clientId}</p>
+                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest whitespace-pre-wrap leading-relaxed max-w-sm">{client?.address || 'No registered address.'}</p>
+                  <p className="text-[11px] text-slate-400 font-bold lowercase tracking-wider mt-2">{client?.email || localInvoice.clientEmail}</p>
                 </div>
               </div>
               <div>
-                <h4 className="font-bold text-slate-400 mb-6 uppercase text-[10px] tracking-[0.2em]">From:</h4>
+                <h4 className="font-black text-slate-900 mb-6 uppercase text-[10px] tracking-[0.3em] border-b border-slate-100 pb-2">Origin Registry (From)</h4>
                 <div className="space-y-1">
-                  <p className="text-xl font-extrabold text-slate-900 uppercase tracking-tight">{userProfile.fullName}</p>
-                  <p className="text-sm text-slate-500 whitespace-pre-wrap leading-relaxed">{userProfile.branding.address}</p>
-                  <p className="text-sm text-slate-500">{userProfile.email}</p>
+                  <p className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">{userProfile?.fullName}</p>
+                  <p className="text-[11px] text-indigo-600 font-black uppercase tracking-widest mb-1">{userProfile?.title || 'OPERATIVE'}</p>
+                  <p className="text-[11px] text-slate-400 font-bold lowercase tracking-wider mt-2">{userProfile?.email}</p>
                 </div>
               </div>
             </div>
 
             <div className="flex-1">
               <div className="w-full border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-end">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] w-1/2">Item</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] w-1/2">Service Allocation</span>
                 <div className="flex w-1/2 justify-end gap-10">
-                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] w-16 text-center">Qty</span>
-                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] w-24 text-right">Price</span>
-                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] w-24 text-right">Total</span>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] w-16 text-center">Volume</span>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] w-24 text-right">Unit Value</span>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] w-24 text-right">Node Worth</span>
                    {isEditing && <span className="w-8"></span>}
                 </div>
               </div>
@@ -300,11 +307,17 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
               <div className="space-y-2">
                 {(localInvoice.productList || []).map((item, i) => (
                   <div key={i} className="flex justify-between items-center py-4 border-b border-slate-50 group">
-                    <div className="flex-1 pr-10">{isEditing ? <input className="w-full bg-slate-50 border border-slate-100 p-2 text-lg font-bold text-slate-900 uppercase tracking-tight focus:bg-white" value={item.name} onChange={e => updateLocalItem(i, { name: e.target.value.toUpperCase() })} /> : <p className="text-lg font-bold text-slate-900 uppercase tracking-tight">{item.name}</p>}</div>
+                    <div className="flex-1 pr-10">
+                      {isEditing ? (
+                        <input className="w-full bg-slate-50 border border-slate-100 p-2 text-lg font-black text-slate-900 uppercase tracking-tight focus:bg-white" value={item.name} onChange={e => updateLocalItem(i, { name: e.target.value.toUpperCase() })} />
+                      ) : (
+                        <p className="text-lg font-black text-slate-900 uppercase tracking-tight leading-tight">{item.name}</p>
+                      )}
+                    </div>
                     <div className="flex justify-end gap-10 items-center">
-                       <div className="w-16 text-center">{isEditing ? <input type="number" className="w-full bg-slate-50 border border-slate-100 p-2 text-center text-sm font-bold text-slate-900" value={item.quantity} onChange={e => updateLocalItem(i, { quantity: parseInt(e.target.value) || 1 })} /> : <p className="text-sm font-bold text-slate-900 tabular-nums">{item.quantity}</p>}</div>
-                       <div className="w-24 text-right">{isEditing ? <input type="number" className="w-full bg-slate-50 border border-slate-100 p-2 text-right text-sm font-bold text-slate-900" value={item.price} onChange={e => updateLocalItem(i, { price: parseFloat(e.target.value) || 0 })} /> : <p className="text-sm font-bold text-slate-900 tabular-nums">{item.price.toLocaleString()}</p>}</div>
-                       <div className="w-24 text-right"><p className="text-lg font-bold text-slate-900 tabular-nums">{(item.price * item.quantity).toLocaleString()}</p></div>
+                       <div className="w-16 text-center">{isEditing ? <input type="number" className="w-full bg-slate-50 border border-slate-100 p-2 text-center text-sm font-bold text-slate-900" value={item.quantity} onChange={e => updateLocalItem(i, { quantity: parseInt(e.target.value) || 1 })} /> : <p className="text-sm font-black text-slate-900 tabular-nums">{item.quantity}</p>}</div>
+                       <div className="w-24 text-right">{isEditing ? <input type="number" className="w-full bg-slate-50 border border-slate-100 p-2 text-right text-sm font-bold text-slate-900" value={item.price} onChange={e => updateLocalItem(i, { price: parseFloat(e.target.value) || 0 })} /> : <p className="text-sm font-black text-slate-900 tabular-nums">{item.price.toLocaleString()}</p>}</div>
+                       <div className="w-24 text-right"><p className="text-lg font-black text-slate-900 tabular-nums">{(item.price * item.quantity).toLocaleString()}</p></div>
                        {isEditing && <button type="button" onClick={() => removeLocalItem(i)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"><Trash2 size={16} /></button>}
                     </div>
                   </div>
@@ -314,31 +327,31 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
 
               <div className="mt-20 border-t-2 border-slate-100 pt-10">
                 <div className="flex justify-between items-center pt-8 border-t-4 border-slate-900">
-                   <span className="text-xl font-black uppercase tracking-widest">Grand Total</span>
-                   <span className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter">{currencySymbols[localInvoice.currency]}{total.toLocaleString()}</span>
+                   <span className="text-xl font-black uppercase tracking-[0.3em]">Gross Worth</span>
+                   <span className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{currencySymbols[localInvoice.currency]}{total.toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
             <div className="mt-20 pt-10 border-t border-slate-100 grid grid-cols-2 gap-10">
                <div>
-                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Payment Details</h5>
-                  <div className="space-y-1 text-[11px] text-slate-500 font-medium">
-                     <p>Transfer to: {userProfile.branding.bankDetails}</p>
-                     <p className="mt-4 text-[9px] uppercase tracking-widest opacity-50">Due date: {new Date(localInvoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                  <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em] mb-4">Payment Node Parameters</h5>
+                  <div className="space-y-1 text-[11px] text-slate-500 font-bold uppercase tracking-widest">
+                     <p>Settlement to: {userProfile?.branding?.bankDetails || 'Manual wire.'}</p>
+                     <p className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-[0.4em]">Target Date: {new Date(localInvoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                   </div>
                </div>
                <div className="text-right flex flex-col items-end justify-end">
-                  {userProfile.branding.signatureUrl ? <img src={userProfile.branding.signatureUrl} alt="Signature" className="h-12 object-contain grayscale opacity-60 mb-4" /> : <div className="h-12 w-32 border-b border-slate-200 mb-4"></div>}
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{userProfile.fullName}</p>
-                  <p className="text-[9px] text-slate-300 uppercase font-medium mt-1">{userProfile.companyName}</p>
+                  {userProfile?.branding?.signatureUrl ? <img src={userProfile.branding.signatureUrl} alt="Signature" className="h-12 object-contain grayscale opacity-80 mb-4" /> : <div className="h-12 w-48 border-b-2 border-slate-900 mb-4"></div>}
+                  <p className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em] leading-none">{userProfile?.fullName}</p>
+                  <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mt-1.5">{userProfile?.title || 'OPERATIVE'}</p>
                </div>
             </div>
           </div>
         </div>
       </div>
 
-      <ConfirmationModal isOpen={showDiscardConfirm} title="Discard changes?" message="You have unsaved changes. Do you want to save them before closing?" confirmLabel="Save and Close" onConfirm={() => { handleSaveChanges(); onClose(); setShowDiscardConfirm(false); }} onCancel={() => { setShowDiscardConfirm(false); onClose(); }} variant="primary" />
+      <ConfirmationModal isOpen={showDiscardConfirm} title="Discard Node Updates?" message="Registry sync failed because changes were not committed. Do you wish to synchronize before closing?" confirmLabel="Save and Sync" onConfirm={() => { handleSaveChanges(); onClose(); setShowDiscardConfirm(false); }} onCancel={() => { setShowDiscardConfirm(false); onClose(); }} variant="primary" />
     </div>,
     document.body
   );

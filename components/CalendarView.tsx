@@ -14,7 +14,7 @@ import TemporalPicker from './TemporalPicker.tsx';
 import { Button, Card, Input, Select, Badge } from './ui/Primitives.tsx';
 
 const CalendarView: React.FC = () => {
-  const { events, setEvents, pushNotification, invoices, proposals } = useBusiness();
+  const { events, setEvents, deleteEvent, pushNotification, invoices, proposals } = useBusiness();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showForm, setShowForm] = useState(false);
   const [showJump, setShowJump] = useState(false);
@@ -346,7 +346,7 @@ const CalendarView: React.FC = () => {
         isOpen={!!confirmDeleteId} 
         title="Purge Event" 
         message="This schedule node will be permanently decommissioned. Proceed?" 
-        onConfirm={() => { if (confirmDeleteId) setEvents(prev => prev.filter(e => e.id !== confirmDeleteId)); setConfirmDeleteId(null); }} 
+        onConfirm={() => { if (confirmDeleteId) deleteEvent(confirmDeleteId); setConfirmDeleteId(null); }} 
         onCancel={() => setConfirmDeleteId(null)} 
       />
     </div>

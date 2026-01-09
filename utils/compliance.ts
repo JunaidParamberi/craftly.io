@@ -28,7 +28,9 @@ export const calculateUAECompliance = ({
   supplierTRN
 }: ComplianceParams): ComplianceResult => {
   // Identify UAE-to-UAE transactions for 5% VAT
-  const isUAEBased = client?.countryCode === '+971' || 
+  // Fix: Property 'countryCode' does not exist on type 'Client'. Using 'phone' and 'country' instead.
+  const isUAEBased = client?.phone?.startsWith('+971') || 
+                    client?.country?.toUpperCase().includes('UNITED ARAB EMIRATES') ||
                     client?.address?.toUpperCase().includes('UAE') || 
                     client?.address?.toUpperCase().includes('DUBAI') ||
                     client?.address?.toUpperCase().includes('EMIRATES');

@@ -1,5 +1,4 @@
 
-
 export enum View {
   DASHBOARD = 'DASHBOARD',
   CRM = 'CRM',
@@ -8,18 +7,19 @@ export enum View {
   FINANCE = 'FINANCE',
   LPO = 'LPO',
   STOCK = 'STOCK',
-  /* Fixed: CATALOG value should be 'CATALOG', not 'CALENDAR' to avoid collisions in object keys like in MainLayout.tsx */
   CATALOG = 'CATALOG',
   CALENDAR = 'CALENDAR',
   CHAT = 'CHAT',
+  TEAM_CHAT = 'TEAM_CHAT',
   EXPENSES = 'EXPENSES',
   SETTINGS = 'SETTINGS',
   PROFILE = 'PROFILE',
   AUDIT_LOGS = 'AUDIT_LOGS',
-  REPORTS = 'REPORTS'
+  REPORTS = 'REPORTS',
+  PROVISIONING = 'PROVISIONING'
 }
 
-export type UserRole = 'OWNER' | 'EMPLOYEE' | 'CLIENT';
+export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'EMPLOYEE' | 'CLIENT';
 export type HappinessLevel = 'HAPPY' | 'NEUTRAL' | 'SAD';
 
 export type Currency = 
@@ -59,10 +59,13 @@ export interface UserBranding {
   primaryColor: string;
   campaignEmail?: string;
   campaignPhone?: string;
+  country: string;
+  isTaxRegistered: boolean;
 }
 
 export interface UserProfile {
   id: string;
+  companyId: string; 
   fullName: string;
   email: string;
   title: string;
@@ -71,14 +74,44 @@ export interface UserProfile {
   website: string;
   avatarUrl?: string;
   role: UserRole;
+  permissions?: string[];
   branding: UserBranding;
   assignedProjectIds?: string[];
   clientId?: string;
   dashboardConfig?: WidgetConfig[];
+  onboarded: boolean;
+  currency: Currency;
+  status: 'ONLINE' | 'OFFLINE';
+  lastSeen?: any;
+}
+
+export interface TeamChannel {
+  id: string;
+  companyId: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+export interface TeamMessage {
+  id: string;
+  companyId: string;
+  channelId: string; // Used for channels or 'dm_thread_id' for DMs
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  senderAvatar?: string;
+  text: string;
+  timestamp: any;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
 }
 
 export interface AuditEntry {
   id: string;
+  companyId: string;
   timestamp: string;
   action: 'CREATED' | 'DELETED' | 'VIEWED' | 'SENT' | 'UPDATED' | 'OPENED' | 'EXPORTED';
   itemType: string;
@@ -89,6 +122,7 @@ export interface AuditEntry {
 
 export interface Notification {
   id: string;
+  companyId: string;
   title: string;
   description: string;
   timestamp: string;
@@ -110,8 +144,17 @@ export interface ChatMessage {
   timestamp?: string;
 }
 
+export interface ChatThread {
+  id: string;
+  companyId: string;
+  title: string;
+  messages: ChatMessage[];
+  updatedAt: string;
+}
+
 export interface CalendarEvent {
   id: string;
+  companyId: string;
   title: string;
   description: string;
   date: string;
@@ -124,22 +167,25 @@ export type OnboardingStatus = 'Lead' | 'Invited' | 'Active' | 'Archived';
 
 export interface Client {
   id: string;
+  companyId: string;
   name: string;
   taxId: string;
   email: string;
   phone: string;
-  countryCode: string;
+  country: string;
   address: string;
   totalLTV: number;
   currency: Currency;
   status: OnboardingStatus;
   happiness?: HappinessLevel;
   contactPerson: string;
+  paymentPortal?: string;
   createdAt?: string;
 }
 
 export interface CatalogItem {
   id: string;
+  companyId: string;
   name: string;
   category: string;
   unitPrice: number;
@@ -160,6 +206,7 @@ export interface ScopeItem {
 
 export interface Proposal {
   id: string;
+  companyId: string;
   title: string;
   clientName: string;
   clientId: string;
@@ -170,7 +217,7 @@ export interface Proposal {
   timeline: string;
   budget: number;
   billingType: BillingType;
-  status: 'Draft' | 'Sent' | 'Accepted';
+  status: 'Draft' | 'Sent' | 'Accepted' | 'Pending Approval';
   aiDraftContent?: string;
   vibe?: 'Corporate' | 'Creative';
   currency: Currency;
@@ -186,9 +233,11 @@ export interface InvoiceItem {
 
 export type InvoiceTemplate = 'Minimalist_Dark' | 'Swiss_Clean' | 'Corporate_Elite' | 'Cyber_Obsidian' | 'Modern_Soft';
 export type MatchStatus = 'NOT_CHECKED' | 'MATCHED' | 'DISCREPANCY';
+export type ReoccurrenceFrequency = 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
 
 export interface Invoice {
   id: string;
+  companyId: string;
   version: number;
   clientId: string;
   clientEmail: string;
@@ -202,7 +251,7 @@ export interface Invoice {
   amountPaid: number;
   amountAED: number;
   exchangeRate: number;
-  status: 'Draft' | 'Sent' | 'Paid' | 'Partial' | 'Overdue';
+  status: 'Draft' | 'Sent' | 'Paid' | 'Partial' | 'Overdue' | 'Pending Approval';
   currency: Currency;
   dueDate: string;
   templateType?: InvoiceTemplate;
@@ -211,14 +260,44 @@ export interface Invoice {
   deliveryNoteId?: string;
   linkedProposalId?: string;
   sourceDocId?: string;
+  isReoccurring: boolean;
+  reoccurrenceFrequency?: ReoccurrenceFrequency;
+  reoccurrenceDate?: string;
 }
 
 export interface Voucher {
   id: string;
+  companyId: string;
   projectId: string;
   description: string;
   amount: number;
   category: string;
   date: string;
   status: 'Pending' | 'Paid Back' | 'Reimbursed';
+}
+
+export interface Email {
+  id: string;
+  companyId: string;
+  fromName: string;
+  fromEmail: string;
+  subject: string;
+  body: string;
+  snippet: string;
+  timestamp: string;
+  isUnread: boolean;
+  folder: 'inbox' | 'sent' | 'archive' | 'trash';
+  labels: string[];
+}
+
+export interface Campaign {
+  id: string;
+  companyId: string;
+  subject: string;
+  body: string;
+  channel: 'EMAIL' | 'WHATSAPP';
+  assetUrl?: string | null;
+  recipientCount: number;
+  timestamp: string;
+  targetStatus: string;
 }

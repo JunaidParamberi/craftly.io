@@ -14,7 +14,7 @@ interface TemporalPickerProps {
 const TemporalPicker: React.FC<TemporalPickerProps> = ({ label, value, onChange, align = 'left', variant = 'form' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<'days' | 'months' | 'years'>('days');
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, right: 0, side: 'bottom' as 'top' | 'bottom' });
+  const [coords, setCoords] = useState({ top: 0, left: 0, side: 'bottom' as 'top' | 'bottom' });
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewDate, setViewDate] = useState(new Date(value || Date.now()));
   
@@ -29,13 +29,11 @@ const TemporalPicker: React.FC<TemporalPickerProps> = ({ label, value, onChange,
       const rect = containerRef.current.getBoundingClientRect();
       const pickerHeight = 420; 
       const spaceBelow = window.innerHeight - rect.bottom;
-      const shouldShowAbove = spaceBelow < pickerHeight && rect.top > pickerHeight;
+      const shouldShowAbove = spaceBelow < (pickerHeight + 20) && rect.top > (pickerHeight + 20);
 
       setCoords({
         top: shouldShowAbove ? rect.top : rect.bottom,
         left: rect.left,
-        right: rect.right,
-        width: rect.width,
         side: shouldShowAbove ? 'top' : 'bottom'
       });
     }
@@ -86,25 +84,24 @@ const TemporalPicker: React.FC<TemporalPickerProps> = ({ label, value, onChange,
     return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
   }, [value]);
 
-  // Logic to keep the picker inside the viewport
   const pickerStyles = useMemo(() => {
     const pickerWidth = 320;
-    const margin = 16;
-    let left = align === 'right' ? coords.right - pickerWidth : coords.left;
+    const padding = 16;
+    let left = align === 'right' ? (coords.left + (containerRef.current?.offsetWidth || 0) - pickerWidth) : coords.left;
     
-    // Clamp to viewport
-    if (left + pickerWidth > window.innerWidth - margin) {
-      left = window.innerWidth - pickerWidth - margin;
+    // Clamp horizontally to viewport
+    if (left + pickerWidth > window.innerWidth - padding) {
+      left = window.innerWidth - pickerWidth - padding;
     }
-    if (left < margin) {
-      left = margin;
+    if (left < padding) {
+      left = padding;
     }
 
     return {
       top: coords.side === 'bottom' ? `${coords.top + 8}px` : `${coords.top - 428}px`,
       left: `${left}px`
     };
-  }, [coords, align]);
+  }, [coords, align, isOpen]);
 
   return (
     <div className={`relative ${variant === 'form' ? 'w-full' : ''}`} ref={containerRef}>
