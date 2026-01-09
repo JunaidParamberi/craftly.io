@@ -1,6 +1,7 @@
 
 {
   "compilerOptions": {
+    "types": ["vite/client"],
     "target": "ESNext",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
@@ -16,6 +17,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+ "include": [
+    "**/*.ts", 
+    "**/*.tsx", 
+    "vite-env.d.ts"
+  ],
   "exclude": ["node_modules"]
 }

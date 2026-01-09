@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY)
+      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY|| process.env.AGEMINI_API_KEY)
     },
     server: {
       port: 3001,

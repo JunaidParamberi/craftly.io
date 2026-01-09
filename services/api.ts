@@ -77,7 +77,7 @@ class DataAPI {
     
     // Explicitly cast snap as any to avoid incorrect DocumentSnapshot inference
     return onSnapshot(q, (snap: any) => {
-      const data = snap.docs.map(d => ({ ...d.data(), id: d.id }) as T);
+      const data = snap.docs.map((d: { data: () => T; id: any; }) => ({ ...d.data(), id: d.id }) as T);
       callback(data);
     }, (error) => {
       console.error(`Subscription error for tenant ${companyId} on ${collectionName}:`, error);

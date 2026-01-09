@@ -7,7 +7,15 @@ export type UUIDString = string;
 export type Int64String = string;
 export type DateString = string;
 
+export interface ImportMetaEnv {
+  readonly VITE_FIREBASE_API_KEY: string
+  readonly VITE_FIREBASE_PROJECT_ID: string
+  // Add other variables here...
+}
 
+export interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
 
 
 export interface AddReviewData {

@@ -8,14 +8,15 @@ import * as analytics from "firebase/analytics";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDWThmYCCND5mnQJ5M6aMZzgL-MUZObeS0",
-  authDomain: "craftly-76601.firebaseapp.com",
-  projectId: "craftly-76601",
-  storageBucket: "craftly-76601.firebasestorage.app",
-  messagingSenderId: "319030527620",
-  appId: "1:319030527620:web:41fa695ef17c84ca42a4d1",
-  measurementId: "G-5WV9F4FYHR"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
