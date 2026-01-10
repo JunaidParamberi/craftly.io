@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "craftly-76601"
+  },
+  "targets": {
+    "craftly-76601": {
+      "hosting": {
+        "app": [
+          "craftly-76601"
+        ]
+      }
+    }
+  }
+}

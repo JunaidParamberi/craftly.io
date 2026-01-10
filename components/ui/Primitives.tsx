@@ -28,9 +28,9 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const sizes = {
-    sm: "px-3 h-9 text-[11px] rounded-lg",
+    sm: "px-3 h-9 text-[11px] rounded-xl",
     md: "px-5 h-11 text-sm rounded-xl",
-    lg: "px-8 h-12 lg:h-14 text-sm rounded-xl lg:rounded-2xl",
+    lg: "px-8 h-12 lg:h-14 text-sm rounded-2xl",
     icon: "w-11 h-11 rounded-xl",
   };
 
@@ -66,7 +66,7 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div 
       className={`
-        border rounded-2xl sm:rounded-[2rem]
+        border rounded-[2rem]
         ${padding}
         ${variants[variant]}
         ${hover ? 'hover:border-[var(--accent)]/40 hover:shadow-md transition-all duration-200' : ''}
@@ -105,7 +105,7 @@ export const Label: React.FC<LabelProps> = ({ children, className = "" }) => (
 );
 
 // --- INPUTS ---
-const sharedInputStyles = "w-full bg-[var(--input-bg)] border border-[var(--border-ui)] rounded-xl lg:rounded-2xl px-4 lg:px-6 text-sm font-semibold outline-none focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/5 transition-all placeholder:text-slate-500 placeholder:opacity-30 leading-relaxed";
+const sharedInputStyles = "w-full bg-[var(--input-bg)] border border-[var(--border-ui)] rounded-2xl px-4 lg:px-6 text-sm font-semibold outline-none focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/5 transition-all placeholder:text-slate-500 placeholder:opacity-30 leading-relaxed";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -207,22 +207,70 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', cla
     info: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
   };
   return (
-    <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider border ${themes[variant]} ${className}`}>
+    <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wider border ${themes[variant]} ${className}`}>
       {children}
     </span>
   );
 };
 
 // --- EMPTY STATE ---
-export const EmptyState = ({ icon: Icon, title, description, action }: { icon: LucideIcon, title: string, description: string, action?: React.ReactNode }) => (
-  <Card className="p-10 sm:p-16 text-center border-dashed border-2 flex flex-col items-center justify-center space-y-4 opacity-70" hover={false}>
-    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center text-[var(--accent)]">
-      <Icon size={28} />
-    </div>
-    <div className="max-w-xs space-y-2">
-      <h4 className="text-base sm:text-lg font-black uppercase tracking-tight text-[var(--text-primary)] leading-snug">{title}</h4>
-      <p className="text-xs sm:text-sm font-medium text-[var(--text-secondary)] leading-relaxed">{description}</p>
-    </div>
-    {action && <div className="pt-2">{action}</div>}
-  </Card>
-);
+export interface EmptyStateProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+  variant?: 'default' | 'minimal' | 'large';
+  className?: string;
+}
+
+export const EmptyState: React.FC<EmptyStateProps> = ({ 
+  icon: Icon, 
+  title, 
+  description, 
+  action,
+  variant = 'default',
+  className = ''
+}) => {
+  const variants = {
+    default: (
+      <Card className={`p-8 sm:p-12 lg:p-16 text-center border-dashed border-2 flex flex-col items-center justify-center space-y-4 sm:space-y-6 ${className}`} hover={false}>
+        <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-3xl bg-[var(--bg-card-muted)] flex items-center justify-center text-[var(--accent)] opacity-70">
+          <Icon size={variant === 'large' ? 48 : 32} strokeWidth={1.5} />
+        </div>
+        <div className="max-w-md space-y-2 sm:space-y-3">
+          <h4 className="text-lg sm:text-xl lg:text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] leading-snug">{title}</h4>
+          <p className="text-xs sm:text-sm lg:text-base font-medium text-[var(--text-secondary)] leading-relaxed px-2">{description}</p>
+        </div>
+        {action && <div className="pt-4 sm:pt-6 w-full sm:w-auto">{action}</div>}
+      </Card>
+    ),
+    minimal: (
+      <div className={`flex flex-col items-center justify-center py-8 sm:py-12 space-y-3 sm:space-y-4 ${className}`}>
+        <Icon size={24} className="text-[var(--text-secondary)] opacity-50" strokeWidth={1.5} />
+        <div className="text-center space-y-1">
+          <h4 className="text-sm sm:text-base font-black uppercase tracking-tight text-[var(--text-primary)]">{title}</h4>
+          <p className="text-xs font-medium text-[var(--text-secondary)] opacity-70">{description}</p>
+        </div>
+        {action && <div className="pt-2">{action}</div>}
+      </div>
+    ),
+    large: (
+      <Card className={`p-12 sm:p-16 lg:p-20 text-center border-dashed border-2 flex flex-col items-center justify-center space-y-6 sm:space-y-8 ${className}`} hover={false}>
+        <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-3xl bg-[var(--bg-card-muted)] flex items-center justify-center text-[var(--accent)] opacity-70">
+          <Icon size={64} strokeWidth={1.5} />
+        </div>
+        <div className="max-w-lg space-y-3 sm:space-y-4">
+          <h4 className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-[var(--text-primary)] leading-snug">{title}</h4>
+          <p className="text-sm sm:text-base lg:text-lg font-medium text-[var(--text-secondary)] leading-relaxed px-4">{description}</p>
+        </div>
+        {action && <div className="pt-6 sm:pt-8 w-full sm:w-auto">{action}</div>}
+      </Card>
+    ),
+  };
+
+  return variants[variant];
+};
+
+// Re-export Skeleton and Loading components
+export { Skeleton, SkeletonText, SkeletonCard, SkeletonTable, SkeletonList } from './Skeleton';
+export { LoadingProgress, LoadingSpinner, LoadingOverlay } from './LoadingProgress';

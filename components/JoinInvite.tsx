@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
-  ShieldCheck, Loader2, AlertCircle, 
+  ShieldCheck, AlertCircle, 
   User, Key, ArrowRight, Zap, Fingerprint 
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
@@ -74,8 +74,8 @@ const JoinInvite: React.FC = () => {
         fullName: formData.fullName.toUpperCase() 
       });
 
-      // 4. Force Reload/Redirect to Dashboard
-      window.location.href = '/#/dashboard';
+      // 4. Redirect to Dashboard using React Router (no page reload)
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to complete node setup.');

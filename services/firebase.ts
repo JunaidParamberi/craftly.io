@@ -22,8 +22,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-export const storage = getStorage(app);
+// Initialize storage with explicit bucket URL to avoid CORS issues
+export const storage = getStorage(app, firebaseConfig.storageBucket);
 export const functions = getFunctions(app, "us-central1");
+
+// Connect to Functions emulator in development if available
+if (import.meta.env.DEV && import.meta.env.VITE_FUNCTIONS_EMULATOR_URL) {
+  import('firebase/functions').then(({ connectFunctionsEmulator }) => {
+    const [host, port] = import.meta.env.VITE_FUNCTIONS_EMULATOR_URL.split(':');
+    connectFunctionsEmulator(functions, host, parseInt(port) || 5001);
+  }).catch(err => {
+    console.warn('Functions emulator connection failed:', err);
+  });
+}
+
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider('apple.com');
 

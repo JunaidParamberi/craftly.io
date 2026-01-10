@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import admin from "firebase-admin";
 import { v4 as uuidv4 } from "uuid";
 import nodemailer from "nodemailer";
@@ -6,11 +7,14 @@ import nodemailer from "nodemailer";
 if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
 
+// For Firebase Functions v2, onCall functions automatically handle CORS
+// No need to set cors option for onCall functions
+
+// Base function options with required secrets only
 const functionOptions = {
   region: "us-central1",
-  cors: true,
   maxInstances: 10,
-  secrets: ["SMTP_USER", "SMTP_PASS"]
+  secrets: ["SMTP_USER", "SMTP_PASS"] // Only required secrets - Twilio secrets are optional
 };
 
 /**
@@ -46,7 +50,7 @@ const getTerminalTemplate = ({ title, body, actionLink, actionLabel, footerNote 
           <tr>
             <td class="header">
               <div class="logo-box"><span class="zap-icon">Z</span></div>
-              <div style="color: #ffffff; font-size: 10px; font-weight: 900; letter-spacing: 0.4em; text-transform: uppercase;">Craftly Node System</div>
+              <div style="color: #ffffff; font-size: 10px; font-weight: 900; letter-spacing: 0.4em; text-transform: uppercase;">CreaftlyAI Node System</div>
             </td>
           </tr>
           <tr>
@@ -92,18 +96,51 @@ const verifyAdminAccess = async (auth) => {
 };
 
 export const initializeTenant = onCall(functionOptions, async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
-  const { companyId } = request.data;
-  await admin.auth().setCustomUserClaims(request.auth.uid, { role: 'owner', companyId });
-  await db.collection("users").doc(request.auth.uid).set({
-    ...request.data,
-    id: request.auth.uid,
-    role: 'OWNER',
-    permissions: ['MANAGE_CLIENTS', 'MANAGE_PROJECTS', 'MANAGE_FINANCE', 'MANAGE_EXPENSES', 'MANAGE_CATALOG', 'MANAGE_PROVISIONING', 'ACCESS_AI', 'MANAGE_CAMPAIGNS'],
-    onboarded: true,
-    status: 'ONLINE'
-  });
-  return { success: true };
+  // 1. Auth Guard
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Node access denied: Authentication required.");
+  }
+
+  const { companyId, fullName, title, companyName, currency, branding } = request.data;
+
+  // 2. Data Validation (Prevents crashes from missing data)
+  if (!companyId || !companyName) {
+    throw new HttpsError("invalid-argument", "Matrix error: Missing enterprise identity parameters.");
+  }
+
+  try {
+    // 3. Set Custom Claims (Wait for this to complete)
+    await admin.auth().setCustomUserClaims(request.auth.uid, { 
+      role: 'owner', 
+      companyId: companyId 
+    });
+
+    // 4. Create User Document
+    await db.collection("users").doc(request.auth.uid).set({
+      id: request.auth.uid,
+      fullName: fullName || '',
+      title: title || '',
+      companyName: companyName,
+      companyId: companyId,
+      currency: currency || 'AED',
+      branding: branding || {},
+      role: 'OWNER',
+      permissions: [
+        'MANAGE_CLIENTS', 'MANAGE_PROJECTS', 'MANAGE_FINANCE', 
+        'MANAGE_EXPENSES', 'MANAGE_CATALOG', 'MANAGE_PROVISIONING', 
+        'ACCESS_AI', 'MANAGE_CAMPAIGNS'
+      ],
+      onboarded: true,
+      status: 'ONLINE',
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return { success: true, message: "Node initialized successfully." };
+  } catch (error) {
+    console.error("Initialization Sync Error:", error);
+    // Convert generic error to a structured HttpsError to avoid 500 status
+    throw new HttpsError("internal", error.message || "Protocol failure during node initialization.");
+  }
 });
 
 export const sendInviteEmail = onCall(functionOptions, async (request) => {
@@ -117,21 +154,21 @@ export const sendInviteEmail = onCall(functionOptions, async (request) => {
   });
 
   const transporter = getTransporter();
-  const joinLink = `https://craftly.app/#/join?token=${inviteToken}`;
+  const joinLink = `https://app.craftlyai.app/#/join?token=${inviteToken}`;
   let emailSent = false;
 
   if (transporter) {
     try {
       const htmlContent = getTerminalTemplate({
         title: "Initialize Secure Handshake",
-        body: `An authorization packet has been generated for you to join the <strong>${companyName}</strong> strategic node on Craftly.<br/><br/><strong>Security Clearance:</strong> ${role}<br/><strong>Registry Target:</strong> ${email}`,
+        body: `An authorization packet has been generated for you to join the <strong>${companyName}</strong> strategic node on CreaftlyAI.<br/><br/><strong>Security Clearance:</strong> ${role}<br/><strong>Registry Target:</strong> ${email}`,
         actionLink: joinLink,
         actionLabel: "Synchronize Identity",
         footerNote: "This handshake expires in 24 hours for security purposes."
       });
 
       await transporter.sendMail({
-        from: `"Craftly Node System" <${process.env.SMTP_USER}>`,
+        from: `"CreaftlyAI Node System" <${process.env.SMTP_USER || 'no-reply@craftlyai.app'}>`,
         to: email,
         subject: `[ACTION REQUIRED] Identity Sync Protocol for ${companyName}`,
         html: htmlContent
@@ -204,3 +241,449 @@ export const completeSignup = onCall(functionOptions, async (request) => {
   await inviteRef.delete();
   return { success: true };
 });
+
+/**
+ * Send Invoice Email with PDF Attachment
+ */
+export const sendInvoiceEmail = onCall(functionOptions, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+  
+  const { invoiceId, recipientEmail, pdfBase64, pdfFileName, invoiceLink, subject, body, senderEmail, senderName, publicToken } = request.data;
+  
+  if (!recipientEmail || !pdfBase64 || !pdfFileName) {
+    throw new HttpsError("invalid-argument", "Missing required fields: recipientEmail, pdfBase64, pdfFileName");
+  }
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    throw new HttpsError("failed-precondition", "Email service not configured. Please set SMTP credentials.");
+  }
+
+  try {
+    // Get user's email from request data or fetch from Firestore
+    let userEmail = senderEmail;
+    let userName = senderName;
+    
+    if (!userEmail || !userName) {
+      try {
+        const userDoc = await db.collection("users").doc(request.auth.uid).get();
+        const userData = userDoc.data();
+        userEmail = userEmail || userData?.email || '';
+        userName = userName || userData?.fullName || userData?.companyName || '';
+      } catch (e) {
+        console.warn("Could not fetch user data:", e);
+      }
+    }
+
+    // For user-initiated emails (invoices, LPOs): Use user's email as "from"
+    // SMTP must be configured to allow sending from user's email (same domain or "send as")
+    const smtpEmail = process.env.SMTP_USER || 'no-reply@craftlyai.app';
+    
+    // Use user's email if available (for user-initiated emails)
+    // Fallback to app domain email if user email not available
+    const fromEmail = userEmail || smtpEmail || 'no-reply@craftlyai.app';
+    const fromName = userName || 'CreaftlyAI User';
+    
+    // Note: If user's email is different domain, SMTP must support "send as" feature
+    // Otherwise, emails will fail. Consider setting replyTo for different domains.
+    
+    // Convert base64 to buffer for attachment
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+    const emailSubject = subject || `Invoice from ${userName || userEmail || fromEmail.split('@')[0]}`;
+    const emailBody = body || `Please find attached invoice and viewing link:\n\n${invoiceLink || ''}`;
+
+    const htmlContent = getTerminalTemplate({
+      title: "Invoice Dispatch",
+      body: emailBody.replace(/\n/g, '<br/>'),
+      actionLink: invoiceLink || '#',
+      actionLabel: "View Invoice",
+      footerNote: "This is an automated dispatch from CreaftlyAI Node System."
+    });
+
+    const mailOptions = {
+      from: `"${fromName}" <${fromEmail}>`,
+      to: recipientEmail,
+      subject: emailSubject,
+      html: htmlContent,
+      text: emailBody,
+      attachments: [{
+        filename: pdfFileName,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }]
+    };
+
+    // If user has a different email than fromEmail (e.g., personal email), set replyTo
+    // This allows recipients to reply directly to the user
+    if (userEmail && userEmail !== fromEmail) {
+      mailOptions.replyTo = userEmail;
+    }
+
+    await transporter.sendMail(mailOptions);
+
+    // Update invoice status to 'Sent' and make it public if invoiceId provided
+    if (invoiceId) {
+      try {
+        const invoiceRef = db.collection("invoices").doc(invoiceId);
+        const invoiceDoc = await invoiceRef.get();
+        const invoiceData = invoiceDoc.data();
+        
+        // Ensure invoice has publicToken and isPublic flag
+        const updates = {
+          status: 'Sent',
+          sentAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+        
+        // Use the publicToken passed from client if provided (to ensure consistency with email link)
+        // Otherwise, use existing token or generate a new one as fallback
+        if (publicToken) {
+          // Use the token from the email link to ensure it matches
+          updates.publicToken = publicToken;
+        } else if (!invoiceData?.publicToken) {
+          // Generate public token only if not provided and doesn't exist
+          const prefix = invoiceData?.type === 'LPO' ? 'lpo' : 'inv';
+          updates.publicToken = `${prefix}-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+        }
+        // If invoice already has a token and no token was passed, keep existing token
+        
+        // Mark as public if not already
+        if (!invoiceData?.isPublic) {
+          updates.isPublic = true;
+        }
+        
+        await invoiceRef.update(updates);
+        console.log(`Invoice ${invoiceId} updated with publicToken: ${updates.publicToken || invoiceData?.publicToken}, isPublic: true`);
+      } catch (e) {
+        console.error("Error updating invoice status:", e);
+        // Don't throw - email was sent, this is just metadata update
+      }
+    }
+
+    return { success: true, message: "Invoice email sent successfully" };
+  } catch (error) {
+    console.error("Email sending error:", error);
+    throw new HttpsError("internal", error.message || "Failed to send invoice email");
+  }
+});
+
+/**
+ * Send Bulk Emails
+ */
+export const sendBulkEmails = onCall(functionOptions, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+  
+  const { recipients, subject, body, htmlBody, attachments, senderEmail, senderName } = request.data;
+  
+  if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+    throw new HttpsError("invalid-argument", "Recipients array is required");
+  }
+
+  if (!subject || !body) {
+    throw new HttpsError("invalid-argument", "Subject and body are required");
+  }
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    throw new HttpsError("failed-precondition", "Email service not configured");
+  }
+
+  // Get user's email from request data or fetch from Firestore
+  let userEmail = senderEmail;
+  let userName = senderName;
+  
+  if (!userEmail || !userName) {
+    try {
+      const userDoc = await db.collection("users").doc(request.auth.uid).get();
+      const userData = userDoc.data();
+      userEmail = userEmail || userData?.email || '';
+      userName = userName || userData?.fullName || userData?.companyName || '';
+    } catch (e) {
+      console.warn("Could not fetch user data:", e);
+    }
+  }
+
+  // For user-initiated emails (campaigns, bulk emails): Use user's email as "from"
+  // SMTP must be configured to allow sending from user's email (same domain or "send as")
+  const smtpEmail = process.env.SMTP_USER || 'hello@craftlyai.app';
+  
+  // Use user's email if available (for user-initiated emails)
+  // Fallback to app domain email if user email not available
+  const fromEmail = userEmail || smtpEmail || 'hello@craftlyai.app';
+  const fromName = userName || 'CreaftlyAI User';
+  
+  // Note: If user's email is different domain, SMTP must support "send as" feature
+  // Otherwise, emails will fail. Consider setting replyTo for different domains.
+
+  const results = [];
+  const errors = [];
+
+  for (const recipient of recipients) {
+    try {
+      const emailBody = htmlBody || body.replace(/\n/g, '<br/>');
+      const htmlContent = htmlBody || getTerminalTemplate({
+        title: subject,
+        body: emailBody,
+        actionLink: '#',
+        actionLabel: "View Details",
+        footerNote: ""
+      });
+
+      const mailOptions = {
+        from: `"${fromName}" <${fromEmail}>`,
+        to: recipient.email || recipient,
+        subject: subject,
+        html: htmlContent,
+        text: body,
+      };
+
+      // If user has a different email than fromEmail (e.g., personal email), set replyTo
+      // This allows recipients to reply directly to the user
+      if (userEmail && userEmail !== fromEmail) {
+        mailOptions.replyTo = userEmail;
+      }
+
+      if (attachments && Array.isArray(attachments)) {
+        mailOptions.attachments = attachments.map(att => ({
+          filename: att.filename,
+          content: Buffer.from(att.content, 'base64'),
+          contentType: att.contentType || 'application/pdf'
+        }));
+      }
+
+      await transporter.sendMail(mailOptions);
+      results.push({ recipient: recipient.email || recipient, status: 'sent' });
+    } catch (error) {
+      console.error(`Error sending email to ${recipient.email || recipient}:`, error);
+      errors.push({ recipient: recipient.email || recipient, error: error.message });
+    }
+  }
+
+  return {
+    success: true,
+    sent: results.length,
+    failed: errors.length,
+    results,
+    errors: errors.length > 0 ? errors : undefined
+  };
+});
+
+/**
+ * Send WhatsApp Message (using Twilio or similar)
+ * Note: Twilio is optional - function will return WhatsApp web link if Twilio not configured
+ * To enable Twilio, set these secrets: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER
+ * Then redeploy with secrets included in functionOptions
+ */
+export const sendWhatsAppMessage = onCall(functionOptions, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+  
+  const { phoneNumber, message, invoiceId } = request.data;
+  
+  if (!phoneNumber || !message) {
+    throw new HttpsError("invalid-argument", "Phone number and message are required");
+  }
+
+  // Clean phone number (remove non-digits except +)
+  const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
+  
+  // Twilio secrets are optional - if not configured, return WhatsApp web link
+  // Note: To use Twilio, add these secrets to the secrets array and redeploy:
+  // TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER
+  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioWhatsApp = process.env.TWILIO_WHATSAPP_NUMBER;
+
+  // Always return WhatsApp web link for now (Twilio integration requires secrets setup)
+  // This allows the function to work without Twilio configuration
+  const whatsappLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  
+  // Update invoice status if provided
+  if (invoiceId) {
+    try {
+      const invoiceRef = db.collection("invoices").doc(invoiceId);
+      await invoiceRef.update({ 
+        status: 'Sent', 
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        sentVia: 'WhatsApp'
+      });
+    } catch (e) {
+      console.error("Error updating invoice status:", e);
+    }
+  }
+
+  return {
+    success: true,
+    whatsappLink,
+    message: "WhatsApp web link generated (Twilio not configured - use WhatsApp web link)"
+  };
+  
+  /* Twilio Integration (commented out - uncomment when Twilio secrets are configured)
+  if (twilioSid && twilioToken && twilioWhatsApp) {
+    try {
+      // Dynamic import for Twilio (requires: npm install twilio)
+      let twilio;
+      try {
+        twilio = (await import('twilio')).default;
+      } catch (importError) {
+        console.warn('Twilio package not installed. Install with: npm install twilio');
+        throw new Error('Twilio package not installed');
+      }
+      const client = twilio(twilioSid, twilioToken);
+
+      const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
+      
+      const whatsappResponse = await client.messages.create({
+        from: `whatsapp:${twilioWhatsApp}`,
+        to: `whatsapp:${formattedPhone}`,
+        body: message
+      });
+
+      if (invoiceId) {
+        try {
+          const invoiceRef = db.collection("invoices").doc(invoiceId);
+          await invoiceRef.update({ 
+            status: 'Sent', 
+            sentAt: admin.firestore.FieldValue.serverTimestamp(),
+            sentVia: 'WhatsApp'
+          });
+        } catch (e) {
+          console.error("Error updating invoice status:", e);
+        }
+      }
+
+      return { 
+        success: true, 
+        messageId: whatsappResponse.sid,
+        message: "WhatsApp message sent successfully via Twilio"
+      };
+    } catch (error) {
+      console.error("Twilio WhatsApp error:", error);
+      // Fallback to web link on Twilio error
+      return {
+        success: true,
+        whatsappLink,
+        message: "Twilio error - using WhatsApp web link instead"
+      };
+    }
+  }
+  */
+});
+
+/**
+ * Process Recurring Invoices - Scheduled Function
+ * Runs daily at 9 AM UTC to check for recurring invoices due to be sent
+ */
+export const processRecurringInvoices = onSchedule(
+  {
+    schedule: "0 9 * * *", // 9 AM UTC daily
+    timeZone: "UTC",
+    region: "us-central1"
+  },
+  async (event) => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Find all recurring invoices that are due today
+      const invoicesSnapshot = await db.collection("invoices")
+        .where("isReoccurring", "==", true)
+        .where("status", "in", ["Sent", "Draft", "Paid"]) // Only process active/sent invoices
+        .get();
+
+      if (invoicesSnapshot.empty) {
+        console.log("No recurring invoices found");
+        return { processed: 0 };
+      }
+
+      let processed = 0;
+      const errors = [];
+
+      for (const doc of invoicesSnapshot.docs) {
+        const invoice = doc.data();
+        const recurringDate = invoice.reoccurrenceDate;
+
+        if (!recurringDate || recurringDate !== todayStr) {
+          continue; // Skip if not due today
+        }
+
+        try {
+          // Create a new invoice based on the recurring one
+          const newInvoiceId = `${invoice.type === 'LPO' ? 'LPO' : 'INV'}-${Math.floor(1000 + Math.random() * 9000)}`;
+          
+          // Calculate next recurring date based on frequency
+          const nextDate = calculateNextRecurringDate(today, invoice.reoccurrenceFrequency || 'Monthly');
+          
+          const newInvoice = {
+            ...invoice,
+            id: newInvoiceId,
+            date: todayStr,
+            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days from now
+            status: 'Draft',
+            reoccurrenceDate: nextDate,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            parentInvoiceId: invoice.id
+          };
+
+          // Remove the id field before saving (Firestore will use doc ID)
+          const { id, ...invoiceData } = newInvoice;
+          await db.collection("invoices").doc(newInvoiceId).set(invoiceData);
+
+          // Update original invoice's next recurring date
+          await doc.ref.update({
+            reoccurrenceDate: nextDate,
+            lastProcessedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+
+          processed++;
+
+          // Optionally auto-send the invoice if configured
+          if (invoice.autoSend === true && invoice.clientEmail) {
+            try {
+              // Note: This would require PDF generation on the server side
+              // For now, we'll just create the invoice and log it
+              console.log(`Created recurring invoice ${newInvoiceId} for ${invoice.clientEmail}`);
+            } catch (e) {
+              console.error(`Error auto-sending invoice ${newInvoiceId}:`, e);
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing recurring invoice ${doc.id}:`, error);
+          errors.push({ invoiceId: doc.id, error: error.message });
+        }
+      }
+
+      console.log(`Processed ${processed} recurring invoices`);
+      return { processed, errors: errors.length > 0 ? errors : undefined };
+    } catch (error) {
+      console.error("Error in processRecurringInvoices:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Helper function to calculate next recurring date
+ */
+function calculateNextRecurringDate(fromDate, frequency) {
+  const nextDate = new Date(fromDate);
+  
+  switch (frequency) {
+    case 'Weekly':
+      nextDate.setDate(nextDate.getDate() + 7);
+      break;
+    case 'Monthly':
+      nextDate.setMonth(nextDate.getMonth() + 1);
+      break;
+    case 'Quarterly':
+      nextDate.setMonth(nextDate.getMonth() + 3);
+      break;
+    case 'Yearly':
+      nextDate.setFullYear(nextDate.getFullYear() + 1);
+      break;
+    default:
+      nextDate.setMonth(nextDate.getMonth() + 1); // Default to monthly
+  }
+  
+  return nextDate.toISOString().split('T')[0];
+}

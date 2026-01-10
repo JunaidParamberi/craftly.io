@@ -2,12 +2,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, User, FilePlus, Gauge, 
-  X, Sparkles, CheckCircle2,
-  Cpu, Terminal, Loader2,
-  TrendingUp, FileText, Bell, Activity, ArrowUpRight,
+  Sparkles,
+  Cpu, Loader2,
+  TrendingUp, Bell, Activity,
   ImageIcon, Download, Palette,
   Upload, Trash2, Copy, Volume2, Check, LayoutPanelLeft,
-  History, RotateCcw, Plus, MessageSquare, ChevronRight, Menu
+  History, RotateCcw, Plus, MessageSquare, Menu, X
 } from 'lucide-react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { useBusiness } from '../context/BusinessContext.tsx';
@@ -214,7 +214,7 @@ const ChatRoom: React.FC = () => {
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const context = `Your name is 'Craftly AI'. You help freelancers in the UAE. 
+      const context = `Your name is 'CreaftlyAI'. You help freelancers in the UAE. 
       CURRENT DATA: Revenue AED ${telemetry.totalEarnings}, Active Projects ${proposals.length}.
       RULES:
       - Use simple, everyday English.
@@ -285,13 +285,14 @@ const ChatRoom: React.FC = () => {
   };
 
   const renderMessageContent = (msg: string) => (
-    <div className="markdown-content prose prose-invert prose-sm max-w-none 
-      leading-relaxed tracking-normal text-slate-300
-      prose-p:mb-4 prose-p:mt-0
-      prose-headings:text-indigo-400 prose-headings:font-black prose-headings:uppercase prose-headings:tracking-widest prose-headings:mt-8 prose-headings:mb-4
-      prose-strong:text-indigo-200 prose-strong:font-bold
-      prose-table:border prose-table:border-white/5 prose-th:bg-white/5 prose-th:p-4 prose-td:p-4 prose-td:border-t prose-td:border-white/5
-      prose-li:marker:text-indigo-500" 
+    <div className="markdown-content prose prose-invert prose-sm sm:prose-sm lg:prose-base max-w-none 
+      leading-relaxed tracking-normal text-[var(--text-primary)] text-xs sm:text-sm lg:text-base
+      prose-p:mb-3 sm:prose-p:mb-4 prose-p:mt-0 prose-p:break-words
+      prose-headings:text-[var(--accent)] prose-headings:font-black prose-headings:uppercase prose-headings:tracking-widest prose-headings:mt-4 sm:prose-headings:mt-6 lg:prose-headings:mt-8 prose-headings:mb-2 sm:prose-headings:mb-3 lg:prose-headings:mb-4 prose-headings:text-sm sm:prose-headings:text-base lg:prose-headings:text-lg
+      prose-strong:text-[var(--accent)] prose-strong:font-bold
+      prose-table:border prose-table:border-[var(--border-ui)] prose-table:text-xs sm:prose-table:text-sm prose-th:bg-[var(--bg-card-muted)] prose-th:p-2 sm:prose-th:p-3 lg:prose-th:p-4 prose-td:p-2 sm:prose-td:p-3 lg:prose-td:p-4 prose-td:border-t prose-td:border-[var(--border-ui)]
+      prose-li:marker:text-[var(--accent)] prose-li:text-xs sm:prose-li:text-sm lg:prose-li:text-base
+      prose-code:text-xs sm:prose-code:text-sm prose-pre:text-xs sm:prose-pre:text-sm" 
       dangerouslySetInnerHTML={{ __html: marked.parse(msg) }} 
     />
   );
@@ -305,92 +306,99 @@ const ChatRoom: React.FC = () => {
   if (loading) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-12">
-        <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden mb-6">
-          <div className="h-full bg-indigo-500 animate-[loading_2s_infinite_linear]" style={{ width: '60%' }} />
+        <div className="w-16 h-1 bg-[var(--bg-card-muted)] rounded-full overflow-hidden mb-6">
+          <div className="h-full bg-[var(--accent)] animate-[loading_2s_infinite_linear]" style={{ width: '60%' }} />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 animate-pulse">Syncing AI...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-secondary)] animate-pulse">Syncing AI...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-11rem)] lg:h-[calc(100vh-8rem)] animate-enter lg:px-4">
+    <div className="flex flex-col h-[calc(100dvh-11rem)] lg:h-[calc(100vh-8rem)] animate-enter px-2 sm:px-3 lg:px-4">
       {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between mb-4 lg:mb-6 gap-3 lg:gap-6 px-1 shrink-0">
-        <div className="flex items-center gap-3 lg:gap-5">
-           <div className="w-10 h-10 lg:w-14 lg:h-14 bg-indigo-600 rounded-xl lg:rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-indigo-500/20 shrink-0 border border-white/10">
-             <Sparkles size={20} className={`lg:w-[28px] lg:h-[28px] ${isTyping ? 'animate-pulse' : ''}`} />
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2 sm:gap-3 lg:gap-6 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 shrink-0">
+           <div className="w-9 h-9 sm:w-10 sm:h-10 lg:w-14 lg:h-14 bg-[var(--accent)] rounded-xl lg:rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-[var(--accent)]/20 shrink-0 border border-white/10">
+             <Sparkles size={18} className={`sm:w-5 sm:h-5 lg:w-[28px] lg:h-[28px] ${isTyping ? 'animate-pulse' : ''}`} />
            </div>
            <div className="min-w-0">
-             <h2 className="text-lg lg:text-2xl font-black uppercase tracking-tight text-[var(--text-primary)]">Craftly AI</h2>
-             <div className="flex items-center gap-2 mt-0.5">
-               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-               <span className="text-[8px] lg:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Active</span>
+             <h2 className="text-base sm:text-lg lg:text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] truncate">CreaftlyAI</h2>
+             <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
+               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+               <span className="text-[9px] sm:text-[8px] lg:text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] whitespace-nowrap">Active</span>
              </div>
            </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-[var(--bg-card-muted)] p-1 rounded-xl lg:rounded-2xl border border-[var(--border-ui)] shadow-sm overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 bg-[var(--bg-card-muted)] p-0.5 sm:p-1 rounded-lg sm:rounded-xl lg:rounded-2xl border border-[var(--border-ui)] shadow-sm overflow-x-auto no-scrollbar w-full sm:w-auto min-w-0">
           {[
-            { id: 'chat', label: 'Chat', icon: MessageSquare },
-            { id: 'marketing', label: 'Campaign Engine', icon: Palette },
-            { id: 'writer', label: 'Write', icon: FilePlus },
-            { id: 'capacity', label: 'Usage', icon: Gauge },
+            { id: 'chat', label: 'Chat', icon: MessageSquare, shortLabel: 'Chat' },
+            { id: 'marketing', label: 'Campaign Engine', icon: Palette, shortLabel: 'Campaign' },
+            { id: 'writer', label: 'Write', icon: FilePlus, shortLabel: 'Write' },
+            { id: 'capacity', label: 'Usage', icon: Gauge, shortLabel: 'Usage' },
           ].map(t => (
             <button 
               key={t.id} 
               onClick={() => setActiveTab(t.id as any)}
-              className={`flex items-center gap-2 px-3 lg:px-6 py-2 lg:py-2.5 rounded-lg lg:rounded-xl text-[8px] lg:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === t.id ? 'bg-indigo-600 text-white shadow-xl' : 'text-slate-500 hover:text-[var(--text-primary)] hover:bg-white/5'}`}
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 lg:px-6 py-2 sm:py-2 lg:py-2.5 rounded-md sm:rounded-lg lg:rounded-xl text-[9px] sm:text-[8px] lg:text-[10px] font-black uppercase tracking-wide sm:tracking-widest transition-all whitespace-nowrap shrink-0 ${activeTab === t.id ? 'bg-[var(--accent)] text-white shadow-xl' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-muted)]'}`}
             >
-              <t.icon size={12} className="lg:w-[14px] lg:h-[14px]" />
-              {t.label}
+              <t.icon size={11} className="sm:w-3 sm:h-3 lg:w-[14px] lg:h-[14px] shrink-0" />
+              <span className="hidden min-[375px]:inline">{t.label}</span>
+              <span className="min-[375px]:hidden">{t.shortLabel}</span>
             </button>
           ))}
         </div>
       </header>
 
       {/* Workspace */}
-      <div className="flex-1 bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-[1.5rem] lg:rounded-[2.5rem] overflow-hidden flex shadow-2xl relative">
+      <div className="flex-1 bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-xl sm:rounded-[1.5rem] lg:rounded-[2.5rem] overflow-hidden flex shadow-2xl relative min-h-0">
         
         {activeTab === 'chat' && (
           <>
             {/* History Sidebar */}
             <div className={`
               ${showHistory ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-              fixed lg:relative inset-y-0 left-0 w-80 lg:w-72 bg-slate-950/40 border-r border-[var(--border-ui)] z-[100] lg:z-0 transition-transform duration-300 flex flex-col backdrop-blur-3xl lg:backdrop-blur-none
+              fixed lg:relative inset-y-0 left-0 w-[85vw] sm:w-80 max-w-[320px] lg:w-72 lg:max-w-none bg-[var(--bg-card)] border-r border-[var(--border-ui)] z-[100] lg:z-0 transition-transform duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
             `}>
-              <div className="p-6 border-b border-[var(--border-ui)] shrink-0">
+              <div className="p-4 sm:p-6 border-b border-[var(--border-ui)] shrink-0 flex items-center justify-between gap-3">
                 <button 
                   onClick={createNewThread}
-                  className="w-full h-12 lg:h-14 bg-indigo-600 text-white rounded-xl lg:rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  className="flex-1 h-11 sm:h-12 lg:h-14 bg-[var(--accent)] text-white rounded-lg sm:rounded-xl lg:rounded-2xl font-black uppercase text-[10px] sm:text-[10px] flex items-center justify-center gap-2 sm:gap-3 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
-                  <Plus size={16} />
+                  <Plus size={14} className="sm:w-4 sm:h-4" />
                   <span>New Chat</span>
+                </button>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="lg:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  <X size={18} />
                 </button>
               </div>
               
-              <div className="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
-                <p className="text-[8px] font-black uppercase tracking-[0.4em] text-slate-500 mb-4 ml-2">History</p>
+              <div className="flex-1 overflow-y-auto custom-scroll p-3 sm:p-4 space-y-2">
+                <p className="text-[9px] sm:text-[8px] font-black uppercase tracking-[0.4em] text-[var(--text-secondary)] mb-3 sm:mb-4 ml-1 sm:ml-2">History</p>
                 {chatThreads.map(thread => (
                   <div key={thread.id} className="group relative">
                     <button 
                       onClick={() => { setActiveThreadId(thread.id); if (window.innerWidth < 1024) setShowHistory(false); }}
                       className={`
-                        w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all
-                        ${activeThreadId === thread.id ? 'bg-indigo-600/10 border-indigo-500/20 text-indigo-400' : 'hover:bg-white/5 text-slate-400'}
+                        w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl text-left transition-all border
+                        ${activeThreadId === thread.id ? 'bg-[var(--accent)]/10 border-[var(--accent)]/20 text-[var(--accent)]' : 'hover:bg-[var(--bg-card-muted)] border-transparent text-[var(--text-secondary)]'}
                       `}
                     >
-                      <MessageSquare size={16} className="shrink-0" />
+                      <MessageSquare size={14} className="sm:w-4 sm:h-4 shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-black uppercase tracking-tight truncate">{thread.title}</p>
-                        <p className="text-[7px] font-bold text-slate-500 mt-0.5">{new Date(thread.updatedAt).toLocaleDateString()}</p>
+                        <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-tight truncate text-[var(--text-primary)]">{thread.title}</p>
+                        <p className="text-[8px] sm:text-[7px] font-bold text-[var(--text-secondary)] mt-0.5">{new Date(thread.updatedAt).toLocaleDateString()}</p>
                       </div>
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); deleteChatThread(thread.id); if (activeThreadId === thread.id) setActiveThreadId(null); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 text-[var(--text-secondary)] hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={12} className="sm:w-[14px] sm:h-[14px]" />
                     </button>
                   </div>
                 ))}
@@ -400,7 +408,7 @@ const ChatRoom: React.FC = () => {
             {/* Backdrop for mobile history */}
             {showHistory && (
               <div 
-                className="fixed inset-0 bg-black/60 z-[90] lg:hidden backdrop-blur-sm" 
+                className="fixed inset-0 bg-black/60 z-[90] lg:hidden backdrop-blur-sm transition-opacity" 
                 onClick={() => setShowHistory(false)}
               />
             )}
@@ -409,41 +417,41 @@ const ChatRoom: React.FC = () => {
               {/* History Toggle (Mobile) */}
               <button 
                 onClick={() => setShowHistory(true)}
-                className="lg:hidden absolute top-4 left-4 z-10 w-10 h-10 bg-slate-900 border border-white/10 rounded-xl flex items-center justify-center text-slate-400 shadow-2xl"
+                className="lg:hidden absolute top-3 sm:top-4 left-3 sm:left-4 z-10 w-9 h-9 sm:w-10 sm:h-10 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-lg sm:rounded-xl flex items-center justify-center text-[var(--text-secondary)] shadow-2xl hover:bg-[var(--bg-card)] transition-colors"
               >
-                <Menu size={18} />
+                <Menu size={16} className="sm:w-[18px] sm:h-[18px]" />
               </button>
 
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 lg:p-12 space-y-6 lg:space-y-12 custom-scroll bg-indigo-500/[0.01]">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-12 space-y-4 sm:space-y-6 lg:space-y-12 custom-scroll bg-[var(--bg-canvas)]/30 pt-12 sm:pt-14 lg:pt-4">
                 {!activeThread || activeThread.messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center opacity-20 py-10 lg:py-20">
-                    <div className="w-16 h-16 lg:w-24 lg:h-24 bg-indigo-500/10 rounded-[1.5rem] lg:rounded-[2.5rem] flex items-center justify-center text-indigo-500 mb-4 lg:mb-8">
-                      <Sparkles size={32} className="lg:w-[48px] lg:h-[48px]" />
+                  <div className="h-full flex flex-col items-center justify-center text-center opacity-20 py-8 sm:py-10 lg:py-20 px-4">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 lg:w-24 lg:h-24 bg-indigo-500/10 rounded-xl sm:rounded-[1.5rem] lg:rounded-[2.5rem] flex items-center justify-center text-indigo-500 mb-3 sm:mb-4 lg:mb-8">
+                      <Sparkles size={28} className="sm:w-8 sm:h-8 lg:w-[48px] lg:h-[48px]" />
                     </div>
-                    <h4 className="text-[9px] lg:text-[11px] font-black uppercase tracking-[0.5em]">Ask Craftly AI</h4>
-                    <p className="text-[8px] lg:text-[10px] font-bold uppercase tracking-widest mt-2 lg:mt-4 text-slate-500 max-w-[240px] lg:max-w-[280px] leading-relaxed">
+                    <h4 className="text-[10px] sm:text-[9px] lg:text-[11px] font-black uppercase tracking-[0.4em] sm:tracking-[0.5em]">Ask CreaftlyAI</h4>
+                    <p className="text-[9px] sm:text-[8px] lg:text-[10px] font-bold uppercase tracking-wide sm:tracking-widest mt-2 sm:mt-2 lg:mt-4 text-[var(--text-secondary)] max-w-[200px] sm:max-w-[240px] lg:max-w-[280px] leading-relaxed">
                       Ask about your business, taxes, or projects.
                     </p>
                   </div>
                 ) : (
                   activeThread.messages.map((m, i) => (
-                    <div key={i} className={`flex gap-3 lg:gap-8 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'} animate-enter`}>
-                      <div className={`w-8 h-8 lg:w-11 lg:h-11 rounded-lg lg:rounded-xl flex items-center justify-center shrink-0 border ${m.role === 'user' ? 'bg-[var(--accent)] text-white border-white/10 shadow-lg' : 'bg-[var(--bg-canvas)] text-indigo-500 border-[var(--border-ui)]'}`}>
-                        {m.role === 'user' ? <User size={14} className="lg:w-[20px] lg:h-[20px]" /> : <Cpu size={14} className="lg:w-[20px] lg:h-[20px]" />}
+                    <div key={i} className={`flex gap-2 sm:gap-3 lg:gap-8 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'} animate-enter`}>
+                      <div className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-11 lg:h-11 rounded-md sm:rounded-lg lg:rounded-xl flex items-center justify-center shrink-0 border ${m.role === 'user' ? 'bg-[var(--accent)] text-white border-white/10 shadow-lg' : 'bg-[var(--bg-card-muted)] text-[var(--accent)] border-[var(--border-ui)]'}`}>
+                        {m.role === 'user' ? <User size={12} className="sm:w-[14px] sm:h-[14px] lg:w-[20px] lg:h-[20px]" /> : <Cpu size={12} className="sm:w-[14px] sm:h-[14px] lg:w-[20px] lg:h-[20px]" />}
                       </div>
-                      <div className={`max-w-[90%] lg:max-w-[75%] ${m.role === 'user' ? 'text-right' : ''} group relative`}>
-                        <div className={`p-4 lg:p-8 rounded-[1.25rem] lg:rounded-[2rem] inline-block text-left shadow-sm ${m.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-card-muted)] border border-[var(--border-ui)] text-[var(--text-primary)]'}`}>
-                          {m.role === 'model' ? renderMessageContent(m.text) : <div className="text-[13px] lg:text-[15px] font-semibold leading-relaxed">{m.text}</div>}
+                      <div className={`max-w-[calc(100%-3.5rem)] sm:max-w-[85%] lg:max-w-[75%] min-w-0 ${m.role === 'user' ? 'text-right' : ''} group relative`}>
+                        <div className={`p-3 sm:p-4 lg:p-8 rounded-lg sm:rounded-[1.25rem] lg:rounded-[2rem] inline-block text-left shadow-sm ${m.role === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-card-muted)] border border-[var(--border-ui)] text-[var(--text-primary)]'}`}>
+                          {m.role === 'model' ? renderMessageContent(m.text) : <div className="text-[12px] sm:text-[13px] lg:text-[15px] font-semibold leading-relaxed break-words">{m.text}</div>}
                           
                           {m.role === 'model' && (
-                            <div className="mt-4 lg:mt-6 pt-4 lg:pt-6 border-t border-white/5 flex items-center gap-2 lg:gap-3 lg:opacity-0 lg:group-hover:opacity-100 transition-all transform lg:translate-y-2 lg:group-hover:translate-y-0">
-                               <button onClick={() => handleCopy(m.text, `msg-${i}`)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[8px] lg:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all border border-white/5">
-                                 {copiedId === `msg-${i}` ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} />}
-                                 Copy
+                            <div className="mt-3 sm:mt-4 lg:mt-6 pt-3 sm:pt-4 lg:pt-6 border-t border-[var(--border-ui)] flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-wrap opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
+                               <button onClick={() => handleCopy(m.text, `msg-${i}`)} className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 bg-[var(--bg-card)] hover:bg-[var(--bg-card-muted)] rounded-md sm:rounded-lg text-[9px] sm:text-[8px] lg:text-[9px] font-black uppercase tracking-wide sm:tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all border border-[var(--border-ui)]">
+                                 {copiedId === `msg-${i}` ? <Check size={9} className="sm:w-[10px] sm:h-[10px] text-emerald-500" /> : <Copy size={9} className="sm:w-[10px] sm:h-[10px]" />}
+                                 <span className="hidden min-[375px]:inline">Copy</span>
                                </button>
-                               <button onClick={() => handleSpeak(m.text, `msg-${i}`)} disabled={isSpeakingId !== null} className={`flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg text-[8px] lg:text-[9px] font-black uppercase tracking-widest transition-all border border-white/5 ${isSpeakingId === `msg-${i}` ? 'text-indigo-400 animate-pulse' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}>
-                                 {isSpeakingId === `msg-${i}` ? <Loader2 size={10} className="animate-spin" /> : <Volume2 size={10} />}
-                                 Listen
+                               <button onClick={() => handleSpeak(m.text, `msg-${i}`)} disabled={isSpeakingId !== null} className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 bg-[var(--bg-card)] rounded-md sm:rounded-lg text-[9px] sm:text-[8px] lg:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all border border-[var(--border-ui)] ${isSpeakingId === `msg-${i}` ? 'text-[var(--accent)] animate-pulse' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-muted)]'}`}>
+                                 {isSpeakingId === `msg-${i}` ? <Loader2 size={9} className="sm:w-[10px] sm:h-[10px] animate-spin" /> : <Volume2 size={9} className="sm:w-[10px] sm:h-[10px]" />}
+                                 <span className="hidden min-[375px]:inline">Listen</span>
                                </button>
                             </div>
                           )}
@@ -453,26 +461,40 @@ const ChatRoom: React.FC = () => {
                   ))
                 )}
                 {isTyping && (
-                  <div className="flex items-center gap-3 ml-11 lg:ml-20 animate-enter">
-                     <div className="flex gap-1.5 p-3 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-xl lg:rounded-2xl shadow-inner">
-                        <span className="w-1 h-1 lg:w-1.5 lg:h-1.5 bg-indigo-500 rounded-full animate-bounce"></span>
-                        <span className="w-1 h-1 lg:w-1.5 lg:h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.1s]"></span>
-                        <span className="w-1 h-1 lg:w-1.5 lg:h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                  <div className="flex items-center gap-2 sm:gap-3 ml-9 sm:ml-11 lg:ml-20 animate-enter">
+                     <div className="flex gap-1.5 p-2.5 sm:p-3 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-lg sm:rounded-xl lg:rounded-2xl shadow-inner">
+                        <span className="w-1 h-1 sm:w-1 sm:h-1 lg:w-1.5 lg:h-1.5 bg-[var(--accent)] rounded-full animate-bounce"></span>
+                        <span className="w-1 h-1 sm:w-1 sm:h-1 lg:w-1.5 lg:h-1.5 bg-[var(--accent)] rounded-full animate-bounce [animation-delay:0.1s]"></span>
+                        <span className="w-1 h-1 sm:w-1 sm:h-1 lg:w-1.5 lg:h-1.5 bg-[var(--accent)] rounded-full animate-bounce [animation-delay:0.2s]"></span>
                      </div>
                   </div>
                 )}
               </div>
               
-              <footer className="p-4 lg:p-10 border-t border-[var(--border-ui)] shrink-0 bg-[var(--bg-card)]">
-                 <div className="max-w-5xl mx-auto space-y-4 lg:space-y-6">
-                   <div className="flex items-center gap-2 lg:gap-3 overflow-x-auto no-scrollbar pb-1">
+              <footer className="p-3 sm:p-4 lg:p-10 border-t border-[var(--border-ui)] shrink-0 bg-[var(--bg-card)]">
+                 <div className="max-w-5xl mx-auto space-y-3 sm:space-y-4 lg:space-y-6">
+                   <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
                       {suggestions.map((chip, idx) => (
-                        <button key={idx} onClick={() => handleChatSend(chip.prompt)} className="flex items-center gap-1.5 lg:gap-2 px-3 lg:px-5 py-2 lg:py-3 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-lg lg:rounded-xl text-[8px] lg:text-[9px] font-black uppercase tracking-widest text-slate-500 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shrink-0 shadow-sm"><chip.icon size={11}/><span className="whitespace-nowrap">{chip.label}</span></button>
+                        <button key={idx} onClick={() => handleChatSend(chip.prompt)} className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 px-2.5 sm:px-3 lg:px-5 py-1.5 sm:py-2 lg:py-3 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-md sm:rounded-lg lg:rounded-xl text-[9px] sm:text-[8px] lg:text-[9px] font-black uppercase tracking-wide sm:tracking-widest text-[var(--text-secondary)] hover:bg-[var(--accent)] hover:text-white hover:border-[var(--accent)] transition-all shrink-0 shadow-sm">
+                          <chip.icon size={10} className="sm:w-[11px] sm:h-[11px] shrink-0"/>
+                          <span className="whitespace-nowrap">{chip.label}</span>
+                        </button>
                       ))}
                    </div>
-                   <div className="relative flex items-center gap-2 lg:gap-4">
-                     <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleChatSend()} placeholder="Ask Craftly AI..." className="flex-1 bg-[var(--input-bg)] border border-[var(--border-ui)] rounded-xl lg:rounded-2xl h-12 lg:h-16 px-4 lg:px-8 text-[10px] lg:text-[12px] font-black uppercase tracking-widest outline-none focus:border-indigo-600 transition-all shadow-inner" />
-                     <Button onClick={() => handleChatSend()} disabled={isTyping || !input.trim()} icon={Send} className="w-12 h-12 lg:w-16 lg:h-16 !rounded-xl lg:!rounded-2xl shadow-xl !bg-indigo-600 border-indigo-600" />
+                   <div className="relative flex items-center gap-2 sm:gap-3 lg:gap-4">
+                     <input 
+                       value={input} 
+                       onChange={e => setInput(e.target.value)} 
+                       onKeyDown={e => e.key === 'Enter' && handleChatSend()} 
+                       placeholder="Ask CreaftlyAI..." 
+                       className="flex-1 bg-[var(--input-bg)] border border-[var(--border-ui)] rounded-lg sm:rounded-xl lg:rounded-2xl h-11 sm:h-12 lg:h-16 px-3 sm:px-4 lg:px-8 text-[11px] sm:text-[10px] lg:text-[12px] font-black uppercase tracking-wide sm:tracking-widest outline-none focus:border-indigo-600 transition-all shadow-inner min-w-0" 
+                     />
+                     <Button 
+                       onClick={() => handleChatSend()} 
+                       disabled={isTyping || !input.trim()} 
+                       icon={Send} 
+                       className="w-11 h-11 sm:w-12 sm:h-12 lg:w-16 lg:h-16 !rounded-lg sm:!rounded-xl lg:!rounded-2xl shadow-xl !bg-[var(--accent)] border-[var(--accent)] shrink-0" 
+                     />
                    </div>
                  </div>
               </footer>
@@ -483,48 +505,48 @@ const ChatRoom: React.FC = () => {
         {(activeTab === 'marketing' || activeTab === 'writer') && (
           <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden custom-scroll w-full">
             {/* Control Sidebar */}
-            <div className="w-full lg:w-[400px] bg-slate-950/20 lg:border-r border-[var(--border-ui)] p-5 lg:p-8 lg:overflow-y-auto custom-scroll flex flex-col shrink-0">
-              <header className="mb-6 lg:mb-8">
+            <div className="w-full lg:w-[400px] bg-[var(--bg-card-muted)] lg:border-r border-[var(--border-ui)] p-4 sm:p-5 lg:p-8 lg:overflow-y-auto custom-scroll flex flex-col shrink-0">
+              <header className="mb-4 sm:mb-6 lg:mb-8">
                  <div className="flex items-center gap-2 lg:gap-3 mb-2">
-                   <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-                     {activeTab === 'marketing' ? <Palette size={14}/> : <FilePlus size={14}/>}
+                   <div className="w-7 h-7 sm:w-7 sm:h-7 lg:w-8 lg:h-8 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] flex items-center justify-center shrink-0">
+                     {activeTab === 'marketing' ? <Palette size={13} className="sm:w-[14px] sm:h-[14px]"/> : <FilePlus size={13} className="sm:w-[14px] sm:h-[14px]"/>}
                    </div>
-                   <h3 className="text-xs lg:text-sm font-black uppercase tracking-[0.2em] text-white">
+                   <h3 className="text-[11px] sm:text-xs lg:text-sm font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[var(--text-primary)] truncate">
                      {activeTab === 'marketing' ? 'Campaign Engine' : 'Write'}
                    </h3>
                  </div>
-                 <p className="text-[8px] lg:text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                 <p className="text-[9px] sm:text-[8px] lg:text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wide sm:tracking-widest leading-relaxed">
                    {activeTab === 'marketing' ? 'Generate campaign assets.' : 'Write project documents.'}
                  </p>
               </header>
 
-              <div className="space-y-4 lg:space-y-6 flex-1">
+              <div className="space-y-3 sm:space-y-4 lg:space-y-6 flex-1 min-w-0">
                 {activeTab === 'writer' && (
-                  <Select label="Select Client" value={writerForm.clientId} onChange={e => setWriterForm({...writerForm, clientId: e.target.value})} className="!h-10 lg:!h-12 font-black">
+                  <Select label="Select Client" value={writerForm.clientId} onChange={e => setWriterForm({...writerForm, clientId: e.target.value})} className="!h-10 sm:!h-10 lg:!h-12 font-black text-xs sm:text-sm">
                     <option value="">Select Client...</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </Select>
                 )}
 
                 <div className="space-y-2">
-                  <Label className="!opacity-100 !text-slate-400">Instructions</Label>
+                  <Label className="!opacity-100 text-[10px] sm:text-xs">Instructions</Label>
                   <textarea 
                     value={activeTab === 'marketing' ? marketingPrompt : writerForm.goal} 
                     onChange={e => activeTab === 'marketing' ? setMarketingPrompt(e.target.value) : setWriterForm({...writerForm, goal: e.target.value})} 
-                    className="w-full h-24 lg:h-44 bg-[var(--input-bg)] border border-[var(--border-ui)] rounded-xl lg:rounded-2xl p-4 lg:p-5 text-[13px] font-semibold outline-none focus:border-indigo-600 transition-all shadow-inner leading-relaxed resize-none" 
+                    className="w-full h-28 sm:h-24 lg:h-44 bg-[var(--input-bg)] border border-[var(--border-ui)] rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-5 text-xs sm:text-[13px] font-semibold outline-none focus:border-indigo-600 transition-all shadow-inner leading-relaxed resize-none" 
                     placeholder={activeTab === 'marketing' ? "Describe the visual..." : "Describe the goal..."} 
                   />
                 </div>
 
                 {activeTab === 'marketing' && (
-                  <div className="grid grid-cols-2 gap-3 lg:gap-4">
-                    <Select label="Size" value={aspectRatio} onChange={e => setAspectRatio(e.target.value)} className="!h-10 lg:!h-11 font-black">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
+                    <Select label="Size" value={aspectRatio} onChange={e => setAspectRatio(e.target.value)} className="!h-10 sm:!h-10 lg:!h-11 font-black text-xs sm:text-sm">
                        <option value="1:1">1:1 Square</option>
                        <option value="16:9">16:9 Wide</option>
                        <option value="9:16">9:16 Tall</option>
                     </Select>
                     <div className="space-y-2">
-                       <Label className="!opacity-100 !text-slate-400">Photo</Label>
+                       <Label className="!opacity-100 !text-[var(--text-secondary)] text-[10px] sm:text-xs">Photo</Label>
                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
@@ -533,16 +555,16 @@ const ChatRoom: React.FC = () => {
                             reader.readAsDataURL(file);
                           }
                        }} />
-                       <button onClick={() => attachedImage ? setAttachedImage(null) : fileInputRef.current?.click()} className={`w-full h-10 lg:h-11 px-3 rounded-lg lg:rounded-xl border flex items-center justify-center gap-2 transition-all ${attachedImage ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-[var(--bg-canvas)] border border-[var(--border-ui)] text-slate-400 hover:border-indigo-500'}`}>
-                          {attachedImage ? <Check size={12}/> : <Upload size={12}/>}
-                          <span className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest">{attachedImage ? 'Linked' : 'Add Photo'}</span>
+                       <button onClick={() => attachedImage ? setAttachedImage(null) : fileInputRef.current?.click()} className={`w-full h-10 sm:h-10 lg:h-11 px-2 sm:px-3 rounded-md sm:rounded-lg lg:rounded-xl border flex items-center justify-center gap-1.5 sm:gap-2 transition-all ${attachedImage ? 'bg-[var(--accent)]/10 border-[var(--accent)]/20 text-[var(--accent)]' : 'bg-[var(--input-bg)] border border-[var(--border-ui)] text-[var(--text-secondary)] hover:border-[var(--accent)]'}`}>
+                          {attachedImage ? <Check size={11} className="sm:w-3 sm:h-3 shrink-0"/> : <Upload size={11} className="sm:w-3 sm:h-3 shrink-0"/>}
+                          <span className="text-[9px] sm:text-[8px] lg:text-[9px] font-black uppercase tracking-wide sm:tracking-widest truncate">{attachedImage ? 'Linked' : 'Add Photo'}</span>
                        </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="pt-6 lg:pt-8 mt-4 lg:mt-6 border-t border-[var(--border-ui)]">
+              <div className="pt-4 sm:pt-6 lg:pt-8 mt-3 sm:mt-4 lg:mt-6 border-t border-[var(--border-ui)]">
                 <Button 
                   onClick={activeTab === 'marketing' ? handleMarketingGenerate : async () => {
                     setIsGeneratingProposal(true); setGeneratedProposal(null);
@@ -555,7 +577,7 @@ const ChatRoom: React.FC = () => {
                   }} 
                   loading={isGeneratingMarketing || isGeneratingProposal} 
                   icon={Sparkles} 
-                  className="w-full h-12 lg:h-14 !rounded-xl lg:!rounded-2xl shadow-2xl uppercase tracking-[0.15em] font-black text-[10px] !bg-indigo-600 border-indigo-600" 
+                  className="w-full h-11 sm:h-12 lg:h-14 !rounded-lg sm:!rounded-xl lg:!rounded-2xl shadow-2xl uppercase tracking-[0.1em] sm:tracking-[0.15em] font-black text-[10px] sm:text-[10px] !bg-[var(--accent)] border-[var(--accent)]" 
                   disabled={activeTab === 'marketing' ? !marketingPrompt.trim() : (!writerForm.clientId || !writerForm.goal)}
                 >
                   Generate
@@ -564,53 +586,59 @@ const ChatRoom: React.FC = () => {
             </div>
 
             {/* Main Preview Canvas */}
-            <div className="flex-1 bg-slate-900/40 lg:overflow-y-auto custom-scroll flex flex-col relative min-h-[300px]">
+            <div className="flex-1 bg-[var(--bg-card)] overflow-y-auto custom-scroll flex flex-col relative min-h-[250px] sm:min-h-[300px]">
                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #6366F1 1px, transparent 0)', backgroundSize: '40px 40px' }} />
                
-               <div className="p-4 lg:p-6 flex-1 flex items-center justify-center">
-                  <div className="w-full h-full flex flex-col">
+               <div className="p-3 sm:p-4 lg:p-6 flex-1 flex items-center justify-center min-h-0">
+                  <div className="w-full h-full flex flex-col min-h-0">
                       {isGeneratingMarketing || isGeneratingProposal ? (
-                        <div className="flex-1 flex flex-col items-center justify-center animate-pulse space-y-6 lg:space-y-8">
+                        <div className="flex-1 flex flex-col items-center justify-center animate-pulse space-y-4 sm:space-y-6 lg:space-y-8 py-8 sm:py-12">
                           <div className="relative">
-                              <div className="w-16 h-16 lg:w-24 lg:h-24 bg-indigo-600/10 rounded-2xl lg:rounded-3xl border border-indigo-500/20 flex items-center justify-center">
-                                <Loader2 size={32} className="animate-spin text-indigo-500 lg:w-[48px] lg:h-[48px]" />
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 lg:w-24 lg:h-24 bg-indigo-600/10 rounded-xl sm:rounded-2xl lg:rounded-3xl border border-indigo-500/20 flex items-center justify-center">
+                                <Loader2 size={28} className="sm:w-8 sm:h-8 lg:w-[48px] lg:h-[48px] animate-spin text-indigo-500" />
                               </div>
                           </div>
                           <div className="text-center space-y-2">
-                              <h4 className="text-[9px] lg:text-[11px] font-black uppercase tracking-[0.4em] text-indigo-500">Generating...</h4>
+                              <h4 className="text-[10px] sm:text-[9px] lg:text-[11px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] text-indigo-500">Generating...</h4>
                           </div>
                         </div>
                       ) : (activeTab === 'marketing' ? generatedPoster : generatedProposal) ? (
-                        <div className="flex-1 flex flex-col animate-enter h-full">
-                          <div className="flex-1 bg-slate-950/40 border border-white/5 rounded-xl lg:rounded-[2rem] shadow-2xl flex items-center justify-center overflow-hidden relative group">
+                        <div className="flex-1 flex flex-col animate-enter h-full min-h-0">
+                          <div className="flex-1 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-lg sm:rounded-xl lg:rounded-[2rem] shadow-2xl flex items-center justify-center overflow-hidden relative group min-h-0">
                               {activeTab === 'marketing' ? (
-                                <img src={generatedPoster!} alt="Generated" className="w-full h-full object-contain p-2" />
+                                <img src={generatedPoster!} alt="Generated" className="w-full h-full object-contain p-2 sm:p-3" />
                               ) : (
-                                <div className="w-full h-full p-6 lg:p-12 lg:overflow-y-auto custom-scroll text-left">
+                                <div className="w-full h-full p-4 sm:p-6 lg:p-12 overflow-y-auto custom-scroll text-left min-h-0">
                                   {renderMessageContent(generatedProposal!)}
                                 </div>
                               )}
                               
-                              <div className="absolute inset-x-0 bottom-0 p-4 lg:p-6 flex justify-center gap-3 lg:gap-4 bg-gradient-to-t from-slate-950/90 to-transparent lg:opacity-0 lg:group-hover:opacity-100 transition-all transform lg:translate-y-4 lg:group-hover:translate-y-0">
-                                <button onClick={() => activeTab === 'marketing' ? setGeneratedPoster(null) : setGeneratedProposal(null)} className="h-10 lg:h-11 px-4 lg:px-5 bg-white/10 hover:bg-rose-600 backdrop-blur-md rounded-lg lg:rounded-xl text-white font-black uppercase text-[10px] flex items-center gap-2 cursor-pointer transition-all"><Trash2 size={16}/> Clear</button>
+                              <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 lg:p-6 flex justify-center gap-2 sm:gap-3 lg:gap-4 bg-gradient-to-t from-[var(--bg-card)]/95 to-transparent opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all transform translate-y-0 lg:translate-y-4 lg:group-hover:translate-y-0 flex-wrap">
+                                <button onClick={() => activeTab === 'marketing' ? setGeneratedPoster(null) : setGeneratedProposal(null)} className="h-9 sm:h-10 lg:h-11 px-3 sm:px-4 lg:px-5 bg-[var(--bg-card-muted)] hover:bg-rose-600 border border-[var(--border-ui)] rounded-md sm:rounded-lg lg:rounded-xl text-[var(--text-primary)] hover:text-white font-black uppercase text-[9px] sm:text-[10px] flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all shrink-0">
+                                  <Trash2 size={12} className="sm:w-4 sm:h-4"/>
+                                  <span>Clear</span>
+                                </button>
                                 <button onClick={() => {
                                   if (activeTab === 'marketing') {
                                     const a = document.createElement('a'); a.href = generatedPoster!; a.download = 'campaign_asset.png'; a.click();
                                   } else {
                                     navigator.clipboard.writeText(generatedProposal!); showToast('Copied');
                                   }
-                                }} className="h-10 lg:h-11 px-5 lg:px-7 bg-indigo-600 backdrop-blur-md rounded-lg lg:rounded-xl text-white shadow-2xl font-black uppercase text-[10px] flex items-center gap-2 cursor-pointer transition-all"><Download size={16}/> {activeTab === 'marketing' ? 'Download' : 'Copy'}</button>
+                                }} className="h-9 sm:h-10 lg:h-11 px-4 sm:px-5 lg:px-7 bg-[var(--accent)] rounded-md sm:rounded-lg lg:rounded-xl text-white shadow-2xl font-black uppercase text-[9px] sm:text-[10px] flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all shrink-0">
+                                  <Download size={12} className="sm:w-4 sm:h-4"/>
+                                  <span>{activeTab === 'marketing' ? 'Download' : 'Copy'}</span>
+                                </button>
                               </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center opacity-10">
-                          <div className="w-20 h-20 lg:w-28 lg:h-28 border-2 lg:border-4 border-dashed border-slate-500 rounded-[2rem] lg:rounded-[2.5rem] flex items-center justify-center mb-4 lg:mb-6">
-                              {activeTab === 'marketing' ? <Palette size={40} strokeWidth={1} className="lg:w-[56px] lg:h-[56px]" /> : <LayoutPanelLeft size={40} strokeWidth={1} className="lg:w-[56px] lg:h-[56px]" />}
+                        <div className="flex-1 flex flex-col items-center justify-center opacity-10 py-8 sm:py-12">
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-28 lg:h-28 border-2 lg:border-4 border-dashed border-[var(--border-ui)] rounded-xl sm:rounded-[2rem] lg:rounded-[2.5rem] flex items-center justify-center mb-3 sm:mb-4 lg:mb-6">
+                              {activeTab === 'marketing' ? <Palette size={32} strokeWidth={1} className="sm:w-10 sm:h-10 lg:w-[56px] lg:h-[56px]" /> : <LayoutPanelLeft size={32} strokeWidth={1} className="sm:w-10 sm:h-10 lg:w-[56px] lg:h-[56px]" />}
                           </div>
-                          <div className="text-center space-y-1 lg:space-y-2">
-                              <h4 className="text-xs lg:text-[14px] font-black uppercase tracking-[0.5em]">Empty</h4>
-                              <p className="text-[8px] lg:text-[10px] font-bold uppercase tracking-widest">Start on the left</p>
+                          <div className="text-center space-y-1 sm:space-y-1 lg:space-y-2 px-4">
+                              <h4 className="text-[11px] sm:text-xs lg:text-[14px] font-black uppercase tracking-[0.4em] sm:tracking-[0.5em]">Empty</h4>
+                              <p className="text-[9px] sm:text-[8px] lg:text-[10px] font-bold uppercase tracking-wide sm:tracking-widest">Start on the left</p>
                           </div>
                         </div>
                       )}
@@ -619,23 +647,27 @@ const ChatRoom: React.FC = () => {
 
                {/* Asset Registry / History */}
                {activeTab === 'marketing' && marketingHistory.length > 0 && (
-                  <div className="p-4 lg:p-8 border-t border-white/5 bg-slate-950/20">
-                     <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                           <History size={16} className="text-indigo-400" />
-                           <h4 className="text-[10px] font-black uppercase tracking-widest text-white">Recent Assets</h4>
+                  <div className="p-3 sm:p-4 lg:p-8 border-t border-[var(--border-ui)] bg-[var(--bg-card-muted)]">
+                     <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                           <History size={14} className="sm:w-4 sm:h-4 text-indigo-400 shrink-0" />
+                           <h4 className="text-[10px] sm:text-[10px] font-black uppercase tracking-wide sm:tracking-widest text-[var(--text-primary)] truncate">Recent Assets</h4>
                         </div>
-                        <Badge variant="info" className="!text-[8px]">{marketingHistory.length} Saved</Badge>
+                        <Badge variant="info" className="!text-[9px] sm:!text-[8px] shrink-0">{marketingHistory.length} Saved</Badge>
                      </div>
-                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-3 lg:gap-4">
                         {marketingHistory.map((item, idx) => (
-                           <div key={idx} className="group relative aspect-square bg-slate-900 border border-white/5 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-500 transition-all animate-enter shadow-lg">
+                           <div key={idx} className="group relative aspect-square bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-lg sm:rounded-xl overflow-hidden cursor-pointer hover:border-[var(--accent)] transition-all animate-enter shadow-lg">
                               <img src={item.url} alt="History asset" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
-                              <div className="absolute inset-0 bg-slate-950/80 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-2 p-2 text-center">
-                                 <p className="text-[8px] text-white font-bold line-clamp-2 mb-1 px-1">{item.prompt}</p>
-                                 <div className="flex gap-2">
-                                    <button onClick={() => useFromHistory(item)} title="Restore" className="p-2 bg-indigo-600 text-white rounded-lg hover:scale-110 transition-transform"><RotateCcw size={12}/></button>
-                                    <button onClick={() => useAsReference(item.url)} title="Use as Photo" className="p-2 bg-white text-indigo-600 rounded-lg hover:scale-110 transition-transform"><ImageIcon size={12}/></button>
+                              <div className="absolute inset-0 bg-[var(--bg-card)]/90 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 text-center">
+                                 <p className="text-[8px] sm:text-[8px] text-[var(--text-primary)] font-bold line-clamp-2 mb-1 px-1">{item.prompt}</p>
+                                 <div className="flex gap-1.5 sm:gap-2">
+                                    <button onClick={() => useFromHistory(item)} title="Restore" className="p-1.5 sm:p-2 bg-[var(--accent)] text-white rounded-md sm:rounded-lg hover:scale-110 transition-transform">
+                                      <RotateCcw size={10} className="sm:w-3 sm:h-3"/>
+                                    </button>
+                                    <button onClick={() => useAsReference(item.url)} title="Use as Photo" className="p-1.5 sm:p-2 bg-[var(--bg-card-muted)] text-[var(--accent)] border border-[var(--border-ui)] rounded-md sm:rounded-lg hover:scale-110 transition-transform">
+                                      <ImageIcon size={10} className="sm:w-3 sm:h-3"/>
+                                    </button>
                                  </div>
                               </div>
                            </div>
@@ -648,41 +680,43 @@ const ChatRoom: React.FC = () => {
         )}
 
         {activeTab === 'capacity' && (
-          <div className="flex-1 flex flex-col p-5 lg:p-12 overflow-y-auto custom-scroll w-full">
-            <div className="max-w-4xl mx-auto w-full space-y-10 lg:space-y-16 py-6 lg:py-10">
-               <header className="text-center space-y-4 lg:space-y-6">
-                  <div className="w-14 h-14 lg:w-20 lg:h-20 bg-indigo-500/10 text-indigo-500 rounded-xl lg:rounded-[2.5rem] flex items-center justify-center mx-auto shadow-inner border border-indigo-500/5"><Gauge size={28} className="lg:w-[40px] lg:h-[40px]" /></div>
+          <div className="flex-1 flex flex-col p-4 sm:p-5 lg:p-12 overflow-y-auto custom-scroll w-full">
+            <div className="max-w-4xl mx-auto w-full space-y-6 sm:space-y-10 lg:space-y-16 py-4 sm:py-6 lg:py-10">
+               <header className="text-center space-y-3 sm:space-y-4 lg:space-y-6 px-2">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-20 lg:h-20 bg-indigo-500/10 text-indigo-500 rounded-lg sm:rounded-xl lg:rounded-[2.5rem] flex items-center justify-center mx-auto shadow-inner border border-indigo-500/5">
+                    <Gauge size={24} className="sm:w-7 sm:h-7 lg:w-[40px] lg:h-[40px]" />
+                  </div>
                   <div>
-                    <h3 className="text-2xl lg:text-4xl font-black uppercase tracking-tighter leading-none text-white">Workload</h3>
-                    <p className="text-[9px] lg:text-[11px] font-black text-indigo-500 uppercase tracking-[0.3em] mt-2 lg:mt-4">Status</p>
+                    <h3 className="text-xl sm:text-2xl lg:text-4xl font-black uppercase tracking-tighter leading-none text-[var(--text-primary)]">Workload</h3>
+                    <p className="text-[10px] sm:text-[9px] lg:text-[11px] font-black text-[var(--accent)] uppercase tracking-[0.2em] sm:tracking-[0.3em] mt-2 sm:mt-2 lg:mt-4">Status</p>
                   </div>
                </header>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8">
-                  <Card className="flex flex-col items-center justify-center p-8 lg:p-12 text-center border border-white/5 rounded-[2rem] lg:rounded-[3rem] shadow-2xl bg-indigo-500/[0.02] group hover:border-indigo-500/30 transition-all">
-                     <p className="text-[9px] lg:text-[11px] font-black uppercase text-slate-500 tracking-[0.2em] lg:tracking-[0.3em] mb-2 lg:mb-4">Active Projects</p>
-                     <p className="text-5xl lg:text-7xl font-black text-white tabular-nums tracking-tighter leading-none group-hover:text-indigo-400 transition-colors">{proposals.filter(p => p.status === 'Accepted').length}</p>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-8 px-2">
+                  <Card className="flex flex-col items-center justify-center p-6 sm:p-8 lg:p-12 text-center border border-[var(--border-ui)] rounded-xl sm:rounded-[2rem] lg:rounded-[3rem] shadow-2xl bg-[var(--accent)]/[0.02] group hover:border-[var(--accent)]/30 transition-all">
+                     <p className="text-[10px] sm:text-[9px] lg:text-[11px] font-black uppercase text-[var(--text-secondary)] tracking-[0.15em] sm:tracking-[0.2em] lg:tracking-[0.3em] mb-2 sm:mb-2 lg:mb-4">Active Projects</p>
+                     <p className="text-4xl sm:text-5xl lg:text-7xl font-black text-[var(--text-primary)] tabular-nums tracking-tighter leading-none group-hover:text-[var(--accent)] transition-colors">{proposals.filter(p => p.status === 'Accepted').length}</p>
                   </Card>
-                  <Card className="flex flex-col items-center justify-center p-8 lg:p-12 text-center border border-white/5 rounded-[2rem] lg:rounded-[3rem] shadow-2xl bg-emerald-500/[0.02] group hover:border-emerald-500/30 transition-all">
-                     <p className="text-[9px] lg:text-[11px] font-black uppercase text-slate-500 tracking-[0.2em] lg:tracking-[0.3em] mb-2 lg:mb-4">Capacity</p>
-                     <p className="text-5xl lg:text-7xl font-black text-white tabular-nums tracking-tighter leading-none group-hover:text-emerald-400 transition-colors">
+                  <Card className="flex flex-col items-center justify-center p-6 sm:p-8 lg:p-12 text-center border border-[var(--border-ui)] rounded-xl sm:rounded-[2rem] lg:rounded-[3rem] shadow-2xl bg-emerald-500/[0.02] group hover:border-emerald-500/30 transition-all">
+                     <p className="text-[10px] sm:text-[9px] lg:text-[11px] font-black uppercase text-[var(--text-secondary)] tracking-[0.15em] sm:tracking-[0.2em] lg:tracking-[0.3em] mb-2 sm:mb-2 lg:mb-4">Capacity</p>
+                     <p className="text-4xl sm:text-5xl lg:text-7xl font-black text-[var(--text-primary)] tabular-nums tracking-tighter leading-none group-hover:text-emerald-400 transition-colors">
                        {Math.min(100, (proposals.filter(p => p.status === 'Accepted').length * 25))}%
                      </p>
                   </Card>
                </div>
 
-               <div className="space-y-6 lg:space-y-10 pt-6 lg:pt-10">
+               <div className="space-y-4 sm:space-y-6 lg:space-y-10 pt-4 sm:pt-6 lg:pt-10 px-2">
                   <Button onClick={async () => {
                     setIsAnalyzingCapacity(true); setCapacityAnalysis(null);
                     try {
                       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-                      const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: `Analyze my workload: ${proposals.filter(p => p.status === 'Accepted').length} projects, Revenue AED ${telemetry.totalEarnings}. Give me short simple advice from Craftly AI.` });
+                      const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: `Analyze my workload: ${proposals.filter(p => p.status === 'Accepted').length} projects, Revenue AED ${telemetry.totalEarnings}. Give me short simple advice from CreaftlyAI.` });
                       setCapacityAnalysis(res.text || '');
                     } finally { setIsAnalyzingCapacity(false); }
-                  }} loading={isAnalyzingCapacity} icon={Sparkles} className="w-full h-16 lg:h-20 !rounded-[1.5rem] lg:!rounded-[2.5rem] shadow-2xl font-black text-[10px] lg:text-xs uppercase tracking-[0.2em] !bg-indigo-600 border-indigo-600">Analyze Workload</Button>
+                  }} loading={isAnalyzingCapacity} icon={Sparkles} className="w-full h-14 sm:h-16 lg:h-20 !rounded-lg sm:!rounded-[1.5rem] lg:!rounded-[2.5rem] shadow-2xl font-black text-[10px] sm:text-[10px] lg:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] !bg-[var(--accent)] border-[var(--accent)]">Analyze Workload</Button>
                   
                   {capacityAnalysis && (
-                    <Card className="p-6 lg:p-16 bg-slate-950/40 border border-indigo-500/20 rounded-[1.5rem] lg:rounded-[3rem] animate-enter shadow-inner">
+                    <Card className="p-4 sm:p-6 lg:p-16 bg-[var(--bg-card-muted)] border border-[var(--accent)]/20 rounded-xl sm:rounded-[1.5rem] lg:rounded-[3rem] animate-enter shadow-inner">
                        {renderMessageContent(capacityAnalysis)}
                     </Card>
                   )}

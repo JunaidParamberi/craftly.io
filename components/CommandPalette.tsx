@@ -1,51 +1,190 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, LayoutDashboard, Users, CreditCard, Package, MessageSquare, FileText, Calendar as CalendarIcon, Clock, Receipt, ArrowRight } from 'lucide-react';
+import { Search, LayoutDashboard, Users, CreditCard, Package, MessageSquare, FileText, Calendar as CalendarIcon, Receipt, ArrowRight, Briefcase, Settings as SettingsIcon, BarChart3, UserCircle, Sparkles, DollarSign } from 'lucide-react';
 import { View } from '../types.ts';
 import { useBusiness } from '../context/BusinessContext.tsx';
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (view: View) => void;
+  onSelect: (view: View, linkId?: string) => void;
 }
 
 const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onSelect }) => {
-  // Fix: Replaced projects with proposals as projects doesn't exist in BusinessContext
-  const { clients, proposals, invoices } = useBusiness();
+  // Get all searchable data from context
+  const { clients, proposals, invoices, catalog, events, vouchers, chatThreads } = useBusiness();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const navigationCommands = [
-    { id: View.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard, category: 'Navigation' },
-    { id: View.CRM, label: 'Clients', icon: Users, category: 'Navigation' },
-    { id: View.FINANCE, label: 'Invoices', icon: CreditCard, category: 'Navigation' },
-    { id: View.PROPOSALS, label: 'Proposals', icon: FileText, category: 'Navigation' },
-    { id: View.CATALOG, label: 'Services', icon: Package, category: 'Navigation' },
-    { id: View.CALENDAR, label: 'Calendar', icon: CalendarIcon, category: 'Navigation' },
-    { id: View.CHAT, label: 'AI Assistant', icon: MessageSquare, category: 'Navigation' },
+    { id: View.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard, category: 'Navigation', keywords: ['dashboard', 'home', 'main'] },
+    { id: View.CRM, label: 'Clients', icon: Users, category: 'Navigation', keywords: ['clients', 'customers', 'crm', 'contacts'] },
+    { id: View.FINANCE, label: 'Invoices', icon: CreditCard, category: 'Navigation', keywords: ['invoices', 'invoice', 'billing', 'finance', 'payments'] },
+    { id: View.PROPOSALS, label: 'Projects', icon: Briefcase, category: 'Navigation', keywords: ['projects', 'proposals', 'project', 'proposal'] },
+    { id: View.LPO, label: 'LPOs', icon: Receipt, category: 'Navigation', keywords: ['lpo', 'lpos', 'purchase order', 'orders'] },
+    { id: View.CATALOG, label: 'Services', icon: Package, category: 'Navigation', keywords: ['services', 'catalog', 'products', 'items'] },
+    { id: View.CALENDAR, label: 'Calendar', icon: CalendarIcon, category: 'Navigation', keywords: ['calendar', 'schedule', 'events', 'meetings'] },
+    { id: View.CHAT, label: 'AI Assistant', icon: Sparkles, category: 'Navigation', keywords: ['ai', 'assistant', 'chat', 'help', 'creaftlyai'] },
+    { id: View.TEAM_CHAT, label: 'Team Chat', icon: MessageSquare, category: 'Navigation', keywords: ['team', 'chat', 'messages', 'communication'] },
+    { id: View.EXPENSES, label: 'Expenses', icon: Receipt, category: 'Navigation', keywords: ['expenses', 'costs', 'vouchers', 'receipts'] },
+    { id: View.REPORTS, label: 'Reports', icon: BarChart3, category: 'Navigation', keywords: ['reports', 'analytics', 'stats', 'statistics'] },
+    { id: View.SETTINGS, label: 'Settings', icon: SettingsIcon, category: 'Navigation', keywords: ['settings', 'config', 'preferences', 'options'] },
+    { id: View.PROFILE, label: 'Profile', icon: UserCircle, category: 'Navigation', keywords: ['profile', 'account', 'user', 'me'] },
   ];
 
   const filteredItems = useMemo(() => {
-    const q = query.toLowerCase();
+    if (!query.trim()) {
+      return navigationCommands.slice(0, 8); // Show top 8 commands when no query
+    }
     
-    const navs = navigationCommands.filter(cmd => cmd.label.toLowerCase().includes(q));
+    const q = query.toLowerCase().trim();
     
-    const clientResults = clients
-      .filter(c => c.name.toLowerCase().includes(q) || c.contactPerson.toLowerCase().includes(q))
-      .map(c => ({ id: View.CRM, label: `Client: ${c.name}`, sub: c.contactPerson, icon: Users, category: 'Client' }));
+    // Search navigation commands by label and keywords
+    const navs = navigationCommands.filter(cmd => {
+      const labelMatch = cmd.label.toLowerCase().includes(q);
+      const keywordMatch = (cmd.keywords || []).some(kw => kw.toLowerCase().includes(q));
+      return labelMatch || keywordMatch;
+    }).map(cmd => ({ 
+      id: cmd.id, 
+      label: cmd.label, 
+      sub: cmd.category, 
+      icon: cmd.icon, 
+      category: cmd.category,
+      linkId: undefined
+    }));
+    
+    // Search clients
+    const clientResults = (clients || [])
+      .filter(c => 
+        (c?.name?.toLowerCase() || '').includes(q) || 
+        (c?.contactPerson?.toLowerCase() || '').includes(q) ||
+        (c?.email?.toLowerCase() || '').includes(q)
+      )
+      .map(c => ({ 
+        id: View.CRM, 
+        label: `Client: ${c.name || 'Unknown'}`, 
+        sub: c.contactPerson || c.email || '', 
+        icon: Users, 
+        category: 'Client',
+        linkId: c.id
+      }));
       
-    // Fix: Using proposals and title instead of non-existent projects and name
-    const projectResults = proposals
-      .filter(p => p.title.toLowerCase().includes(q))
-      .map(p => ({ id: View.PROPOSALS, label: `Project: ${p.title}`, sub: p.status, icon: FileText, category: 'Project' }));
+    // Search projects/proposals
+    const projectResults = (proposals || [])
+      .filter(p => 
+        (p?.title?.toLowerCase() || '').includes(q) || 
+        (p?.clientName?.toLowerCase() || '').includes(q) ||
+        (p?.status?.toLowerCase() || '').includes(q)
+      )
+      .map(p => ({ 
+        id: View.PROPOSALS, 
+        label: `Project: ${p.title || 'Unknown'}`, 
+        sub: `${p.clientName || 'Unknown'} • ${p.status || 'Unknown'}`, 
+        icon: FileText, 
+        category: 'Project',
+        linkId: p.id
+      }));
 
-    const invoiceResults = invoices
-      .filter(i => i.id.toLowerCase().includes(q) || i.clientId.toLowerCase().includes(q))
-      .map(i => ({ id: View.FINANCE, label: `Invoice: ${i.id}`, sub: i.clientId, icon: Receipt, category: 'Invoice' }));
+    // Search invoices
+    const invoiceResults = (invoices || [])
+      .filter(i => 
+        (i?.id?.toLowerCase() || '').includes(q) || 
+        (i?.clientId?.toLowerCase() || '').includes(q) ||
+        (i?.type?.toLowerCase() || '').includes(q) ||
+        (i?.status?.toLowerCase() || '').includes(q)
+      )
+      .map(i => ({ 
+        id: i.type === 'LPO' ? View.LPO : View.FINANCE, 
+        label: `${i.type || 'Invoice'}: ${i.id || 'Unknown'}`, 
+        sub: `${i.clientId || 'Unknown'} • ${i.status || 'Unknown'}`, 
+        icon: Receipt, 
+        category: i.type || 'Invoice',
+        linkId: i.id
+      }));
 
-    return [...navs, ...clientResults, ...projectResults, ...invoiceResults];
-  }, [query, clients, proposals, invoices]);
+    // Search catalog items (services/products)
+    const catalogResults = (catalog || [])
+      .filter(item => 
+        (item?.name?.toLowerCase() || '').includes(q) || 
+        (item?.category?.toLowerCase() || '').includes(q) ||
+        (item?.description?.toLowerCase() || '').includes(q)
+      )
+      .map(item => ({ 
+        id: View.CATALOG, 
+        label: `${item.isService ? 'Service' : 'Product'}: ${item.name || 'Unknown'}`, 
+        sub: `${item.category || 'Uncategorized'} • ${item.unitPrice ? `${item.unitPrice}` : 'N/A'}`, 
+        icon: Package, 
+        category: 'Catalog',
+        linkId: undefined
+      }));
+
+    // Search calendar events
+    const eventResults = (events || [])
+      .filter(event => 
+        (event?.title?.toLowerCase() || '').includes(q) || 
+        (event?.description?.toLowerCase() || '').includes(q) ||
+        (event?.type?.toLowerCase() || '').includes(q)
+      )
+      .map(event => ({ 
+        id: View.CALENDAR, 
+        label: `Event: ${event.title || 'Unknown'}`, 
+        sub: `${event.type || 'Event'} • ${event.date || 'No date'}`, 
+        icon: CalendarIcon, 
+        category: 'Event',
+        linkId: event.id
+      }));
+
+    // Search vouchers/expenses
+    const voucherResults = (vouchers || [])
+      .filter(v => 
+        (v?.description?.toLowerCase() || '').includes(q) || 
+        (v?.category?.toLowerCase() || '').includes(q) ||
+        (v?.type?.toLowerCase() || '').includes(q) ||
+        (v?.status?.toLowerCase() || '').includes(q)
+      )
+      .map(v => ({ 
+        id: View.EXPENSES, 
+        label: `${v.type || 'Voucher'}: ${v.description || 'Unknown'}`, 
+        sub: `${v.category || 'Uncategorized'} • ${v.amount || 0} • ${v.status || 'Unknown'}`, 
+        icon: DollarSign, 
+        category: 'Voucher',
+        linkId: undefined
+      }));
+
+    // Search chat threads
+    const chatResults = (chatThreads || [])
+      .filter(thread => 
+        (thread?.title?.toLowerCase() || '').includes(q)
+      )
+      .map(thread => ({ 
+        id: View.CHAT, 
+        label: `Chat: ${thread.title || 'Untitled'}`, 
+        sub: `${thread.messages?.length || 0} messages`, 
+        icon: MessageSquare, 
+        category: 'Chat',
+        linkId: thread.id
+      }));
+
+    // Combine and sort by relevance (exact matches first, then partial)
+    const allResults = [
+      ...navs, 
+      ...clientResults, 
+      ...projectResults, 
+      ...invoiceResults,
+      ...catalogResults,
+      ...eventResults,
+      ...voucherResults,
+      ...chatResults
+    ];
+    
+    return allResults.sort((a, b) => {
+      const aExact = a.label.toLowerCase() === q || a.label.toLowerCase().startsWith(q);
+      const bExact = b.label.toLowerCase() === q || b.label.toLowerCase().startsWith(q);
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+      return 0;
+    });
+  }, [query, clients, proposals, invoices, catalog, events, vouchers, chatThreads]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -63,7 +202,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onSele
       setSelectedIndex(prev => (prev - 1 + filteredItems.length) % filteredItems.length);
     } else if (e.key === 'Enter') {
       if (filteredItems[selectedIndex]) {
-        onSelect(filteredItems[selectedIndex].id as View);
+        const item = filteredItems[selectedIndex];
+        onSelect(item.id as View, (item as any).linkId);
         onClose();
       }
     } else if (e.key === 'Escape') {
@@ -74,7 +214,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onSele
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[20000] flex items-start justify-center pt-[15vh] px-4 bg-black/70 backdrop-blur-sm">
+    <div className="exec-modal-overlay" style={{ zIndex: 20000, alignItems: 'flex-start', paddingTop: '15vh', paddingLeft: '1rem', paddingRight: '1rem' }}>
       <div className="fixed inset-0" onClick={onClose} />
       <div 
         className="w-full max-w-xl bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-[2rem] shadow-2xl overflow-hidden animate-pop-in relative"
@@ -84,7 +224,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onSele
           <Search size={20} className="text-[var(--accent)]" />
           <input 
             type="text" 
-            placeholder="Search projects, clients, or invoices..."
+            placeholder="Search anything... (clients, projects, invoices, services, events, expenses)"
             className="flex-1 bg-transparent border-none outline-none text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] placeholder:opacity-40 uppercase tracking-widest"
             value={query}
             onChange={(e) => {
@@ -93,8 +233,15 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onSele
             }}
             autoFocus
           />
-          <div className="flex items-center gap-2 px-3 py-1 bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-xl text-[10px] font-black text-[var(--text-secondary)] opacity-60">
-            ESC
+          <div className="flex items-center gap-2">
+            <div className="px-3 py-1 bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-xl text-[10px] font-black text-[var(--text-secondary)] opacity-60">
+              ESC
+            </div>
+            {query && (
+              <div className="px-3 py-1 bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-xl text-[10px] font-black text-[var(--text-secondary)] opacity-60">
+                {filteredItems.length} results
+              </div>
+            )}
           </div>
         </div>
 
@@ -105,7 +252,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onSele
               return (
                 <button
                   key={idx}
-                  onClick={() => { onSelect(item.id as View); onClose(); }}
+                  onClick={() => { 
+                    onSelect(item.id as View, (item as any).linkId); 
+                    onClose(); 
+                  }}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`
                     w-full flex items-center justify-between px-8 py-4 transition-all
@@ -121,7 +271,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onSele
                       <span className="text-[9px] font-bold uppercase tracking-[0.2em] opacity-40 block">{(item as any).sub || item.category}</span>
                     </div>
                   </div>
-                  {idx === selectedIndex && <div className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-2">Go to Page <ArrowRight size={12} /></div>}
+                  {idx === selectedIndex && (
+                    <div className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-2">
+                      Go to Page <ArrowRight size={12} />
+                    </div>
+                  )}
                 </button>
               );
             })

@@ -1,10 +1,39 @@
 
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
+    <script>
+      // Apply theme synchronously IMMEDIATELY to prevent flash of unstyled content
+      // This must run before any CSS or rendering occurs
+      (function() {
+        try {
+          const theme = localStorage.getItem('craftly_theme') || 'system';
+          const root = document.documentElement;
+          
+          if (theme === 'system') {
+            // Check system preference with fallback
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              root.classList.add('dark');
+            } else {
+              root.classList.add('light');
+            }
+          } else {
+            root.classList.add(theme);
+          }
+        } catch (e) {
+          // Fallback to light mode if localStorage or matchMedia is not available
+          document.documentElement.classList.add('light');
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Craftly | Enterprise Workspace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#6366F1" />
+    <meta name="description" content="CreaftlyAI - Enterprise CRM and Workspace Management Platform" />
+    <title>CreaftlyAI | Enterprise Workspace</title>
     <link rel="shortcut icon" href="/public/favicon.ico" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -53,13 +82,55 @@
         --input-bg: #020617;
       }
 
+      * {
+        /* Improve touch performance on mobile */
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+      
       body {
         font-family: 'Plus Jakarta Sans', sans-serif;
         background-color: var(--bg-canvas);
         color: var(--text-primary);
         height: 100vh;
+        height: 100dvh; /* Dynamic viewport height for mobile */
+        min-height: -webkit-fill-available; /* iOS Safari fix */
         overflow: hidden;
         line-height: 1.6; /* Global Relaxed Leading */
+        position: fixed;
+        width: 100%;
+        top: 0;
+        left: 0;
+        /* Prevent pull-to-refresh on mobile */
+        overscroll-behavior: none;
+        /* Better text rendering on mobile */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      }
+      
+      /* Mobile safe area support */
+      @supports (padding: max(0px)) {
+        body {
+          padding-top: max(0px, env(safe-area-inset-top));
+          padding-bottom: max(0px, env(safe-area-inset-bottom));
+          padding-left: max(0px, env(safe-area-inset-left));
+          padding-right: max(0px, env(safe-area-inset-right));
+        }
+      }
+      
+      /* Prevent zoom on input focus on iOS Safari */
+      @media screen and (max-width: 767px) {
+        input[type="text"],
+        input[type="email"],
+        input[type="number"],
+        input[type="tel"],
+        input[type="url"],
+        input[type="search"],
+        textarea,
+        select {
+          font-size: 16px !important; /* Prevents zoom on iOS */
+        }
       }
 
       .custom-scroll::-webkit-scrollbar { width: 4px; }
@@ -68,12 +139,20 @@
       .exec-modal-overlay {
         position: fixed;
         inset: 0;
-        background-color: rgba(2, 6, 23, 0.85);
+        background-color: rgba(0, 0, 0, 0.5);
         backdrop-filter: blur(8px);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 10000;
+      }
+      
+      .light .exec-modal-overlay {
+        background-color: rgba(0, 0, 0, 0.4);
+      }
+      
+      .dark .exec-modal-overlay {
+        background-color: rgba(2, 6, 23, 0.85);
       }
 
       .exec-modal-container {
@@ -83,6 +162,24 @@
         width: 100%;
         max-width: 600px;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Mobile chat input footer positioning */
+      @media (max-width: 1023px) {
+        .team-chat-footer {
+          bottom: calc(7rem + env(safe-area-inset-bottom, 0px)) !important;
+        }
+        
+        /* Add padding to messages container to account for footer and navbar */
+        .team-chat-messages {
+          padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px)) !important;
+        }
+      }
+      
+      @media (min-width: 1024px) {
+        .team-chat-footer {
+          bottom: 0 !important;
+        }
       }
 
       .exec-input, .exec-select, .exec-textarea {
@@ -139,6 +236,73 @@
         100% { transform: translateX(300%); }
       }
 
+      @keyframes slide-in-right {
+        from { opacity: 0; transform: translateX(100px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      .animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+      @keyframes slide-in-left {
+        from { opacity: 0; transform: translateX(-100px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      .animate-slide-in-left { animation: slide-in-left 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .animate-fade-in { animation: fade-in 0.2s ease-out; }
+
+      /* Skeleton Loading Animations */
+      @keyframes skeleton-load {
+        0% {
+          background-position: -200px 0;
+          opacity: 0.6;
+        }
+        100% {
+          background-position: calc(200px + 100%) 0;
+          opacity: 1;
+        }
+      }
+
+      .animate-skeleton-load {
+        background: linear-gradient(
+          90deg,
+          var(--bg-card-muted) 0px,
+          var(--bg-card) 40px,
+          var(--bg-card-muted) 80px
+        );
+        background-size: 200px 100%;
+        animation: skeleton-load 1.5s ease-in-out infinite;
+      }
+
+      /* Progress Bar Animation */
+      @keyframes progress-shimmer {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(100%);
+        }
+      }
+
+      .progress-shimmer::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        animation: progress-shimmer 1.5s infinite;
+      }
+
       /* Custom Price Input Spinners Hiding */
       input::-webkit-outer-spin-button,
       input::-webkit-inner-spin-button {
@@ -147,6 +311,169 @@
       }
       input[type=number] {
         -moz-appearance: textfield;
+      }
+      
+      /* Improve touch targets for mobile */
+      @media (max-width: 767px) {
+        button,
+        a,
+        input,
+        select,
+        textarea,
+        [role="button"],
+        [onclick] {
+          min-height: 44px; /* iOS HIG minimum touch target */
+          min-width: 44px;
+        }
+      }
+      
+      /* Smooth scrolling on mobile */
+      @media (prefers-reduced-motion: no-preference) {
+        html {
+          scroll-behavior: smooth;
+        }
+      }
+      
+      /* Hide scrollbars but keep functionality on mobile */
+      @media (max-width: 767px) {
+        .custom-scroll::-webkit-scrollbar {
+          display: none;
+        }
+        .custom-scroll {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      }
+      
+      /* Prevent text selection on buttons and interactive elements */
+      button, [role="button"], .no-select {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      
+      /* Improve rendering performance */
+      .will-change-transform {
+        will-change: transform;
+      }
+      
+      .will-change-opacity {
+        will-change: opacity;
+      }
+
+      /* Comprehensive Responsive Media Queries */
+      
+      /* Extra Small Devices (phones, 320px and up) */
+      @media (min-width: 320px) {
+        .xs\:text-xs { font-size: 0.75rem; }
+        .xs\:text-sm { font-size: 0.875rem; }
+        .xs\:p-2 { padding: 0.5rem; }
+        .xs\:p-4 { padding: 1rem; }
+      }
+
+      /* Small Devices (landscape phones, 576px and up) */
+      @media (min-width: 576px) {
+        .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .sm\:flex-row { flex-direction: row; }
+        .sm\:text-base { font-size: 1rem; }
+      }
+
+      /* Medium Devices (tablets, 768px and up) */
+      @media (min-width: 768px) {
+        .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .md\:text-lg { font-size: 1.125rem; }
+        .md\:p-6 { padding: 1.5rem; }
+        .md\:gap-6 { gap: 1.5rem; }
+      }
+
+      /* Large Devices (desktops, 1024px and up) */
+      @media (min-width: 1024px) {
+        .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .lg\:flex-row { flex-direction: row; }
+        .lg\:text-xl { font-size: 1.25rem; }
+        .lg\:p-8 { padding: 2rem; }
+        .lg\:gap-8 { gap: 2rem; }
+      }
+
+      /* Extra Large Devices (large desktops, 1280px and up) */
+      @media (min-width: 1280px) {
+        .xl\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .xl\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        .xl\:text-2xl { font-size: 1.5rem; }
+        .xl\:max-w-screen-xl { max-width: 1280px; }
+      }
+
+      /* 2XL Devices (larger desktops, 1536px and up) */
+      @media (min-width: 1536px) {
+        .\32xl\:max-w-screen-2xl { max-width: 1536px; }
+        .\32xl\:grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      }
+
+      /* Mobile First - Hide on Mobile, Show on Desktop */
+      @media (max-width: 767px) {
+        .hidden-mobile { display: none !important; }
+        .show-mobile { display: block !important; }
+      }
+
+      @media (min-width: 768px) {
+        .show-mobile { display: none !important; }
+        .hidden-desktop { display: none !important; }
+      }
+
+      /* Tablet Specific Styles */
+      @media (min-width: 768px) and (max-width: 1023px) {
+        .tablet\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .tablet\:text-lg { font-size: 1.125rem; }
+      }
+
+      /* Print Styles */
+      @media print {
+        body { background: white; color: black; }
+        .no-print { display: none !important; }
+        .print\:block { display: block !important; }
+      }
+
+      /* Landscape Orientation */
+      @media (orientation: landscape) and (max-height: 500px) {
+        .landscape\:flex-row { flex-direction: row; }
+        .landscape\:h-auto { height: auto; }
+      }
+
+      /* High DPI Displays */
+      @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+        .high-dpi\:text-sm { font-size: 0.875rem; }
+      }
+
+      /* Dark Mode Media Query (already handled by class) */
+      @media (prefers-color-scheme: dark) {
+        /* Handled by .dark class */
+      }
+
+      /* Reduced Motion */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+        
+        .animate-skeleton-load {
+          animation: none !important;
+        }
+      }
+
+      /* Container Queries Support (Modern Browsers) */
+      @container (min-width: 576px) {
+        .container-sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+
+      @container (min-width: 768px) {
+        .container-md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       }
     </style>
   <script type="importmap">

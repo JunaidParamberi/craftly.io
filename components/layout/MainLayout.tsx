@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Briefcase, CreditCard, 
   Menu, X, Users, Receipt, BarChart3, Box, 
   Calendar as CalendarIcon, Settings as SettingsIcon,
-  LogOut, ShieldCheck, UserCircle, Sparkles, MessageCircle
+  LogOut, ShieldCheck, UserCircle, Sparkles, MessageCircle, Search
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useBusiness } from '../../context/BusinessContext';
@@ -18,6 +18,7 @@ import { View, Theme, UserRole } from '../../types';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
 import ConfirmationModal from '../ConfirmationModal';
+import { notificationService } from '../../services/notificationService';
 
 const THEME_MODES: { id: Theme; icon: any; label: string }[] = [
   { id: 'light', icon: Sun, label: 'Light' },
@@ -30,7 +31,7 @@ const MOBILE_NAV_ITEMS: { path: string; label: string; icon: any; roles?: UserRo
   { path: '/team-chat', label: 'Team Hub', icon: MessageCircle, roles: ['SUPER_ADMIN', 'OWNER', 'EMPLOYEE'] },
   { path: '/projects', label: 'Projects', icon: Briefcase, permission: 'MANAGE_PROJECTS' },
   { path: '/invoices', label: 'Invoices', icon: CreditCard, permission: 'MANAGE_FINANCE' },
-  { path: '/ai-help', label: 'Craftly AI', icon: Sparkles, permission: 'ACCESS_AI' },
+  { path: '/ai-help', label: 'CreaftlyAI', icon: Sparkles, permission: 'ACCESS_AI' },
 ];
 
 const MORE_MENU_ACTIONS = [
@@ -159,6 +160,13 @@ const MainLayout: React.FC = () => {
     });
   }, [userProfile?.role, permissionsStr, isOwner]);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    notificationService.requestPermission().catch(() => {
+      // Silent fail - user can enable later
+    });
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setIsCommandPaletteOpen(true); }
@@ -175,21 +183,29 @@ const MainLayout: React.FC = () => {
     };
   }, [isNotificationsOpen, isAuditLogsOpen]);
 
-  const handleViewSelect = (view: View) => {
+  const handleViewSelect = (view: View, linkId?: string) => {
     const paths: Record<string, string> = { 
-      [View.DASHBOARD]: '/dashboard', [View.CRM]: '/clients', 
-      [View.PROJECTS]: '/projects', [View.PROPOSALS]: '/projects', 
-      [View.FINANCE]: '/invoices', [View.LPO]: '/lpo', 
-      [View.CATALOG]: '/services', [View.CALENDAR]: '/calendar', 
-      [View.CHAT]: '/ai-help', [View.SETTINGS]: '/settings', 
-      [View.PROFILE]: '/profile', [View.REPORTS]: '/reports', 
-      [View.TEAM_CHAT]: '/team-chat', [View.PROVISIONING]: '/provisioning' 
+      [View.DASHBOARD]: '/dashboard', 
+      [View.CRM]: linkId ? `/clients/${linkId}` : '/clients', 
+      [View.PROJECTS]: linkId ? `/projects/${linkId}` : '/projects', 
+      [View.PROPOSALS]: linkId ? `/projects/${linkId}` : '/projects', 
+      [View.FINANCE]: linkId ? `/invoices/${linkId}` : '/invoices', 
+      [View.LPO]: linkId ? `/lpo/${linkId}` : '/lpo', 
+      [View.CATALOG]: '/services', 
+      [View.CALENDAR]: linkId ? `/calendar?event=${linkId}` : '/calendar', 
+      [View.CHAT]: linkId ? `/ai-help?thread=${linkId}` : '/ai-help', 
+      [View.SETTINGS]: '/settings', 
+      [View.PROFILE]: '/profile', 
+      [View.REPORTS]: '/reports', 
+      [View.TEAM_CHAT]: '/team-chat', 
+      [View.PROVISIONING]: '/provisioning' 
     };
     if (paths[view]) {
       navigate(paths[view]);
       setIsMoreMenuOpen(false);
       setIsNotificationsOpen(false);
       setIsAuditLogsOpen(false);
+      setIsCommandPaletteOpen(false);
     }
   };
 
@@ -219,6 +235,15 @@ const MainLayout: React.FC = () => {
           </div>
           <div className="flex items-center gap-1.5 lg:gap-5">
             <div className="flex items-center gap-1 lg:gap-3">
+              <button 
+                onClick={() => setIsCommandPaletteOpen(true)}
+                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-card-muted)] border border-[var(--border-ui)] text-[var(--text-secondary)] hover:bg-[var(--accent)]/10 hover:border-[var(--accent)]/30 transition-all group"
+                title="Search (Cmd+K or Ctrl+K)"
+              >
+                <Search size={16} />
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100 hidden lg:inline">Search</span>
+                <kbd className="hidden xl:inline-flex items-center px-1.5 py-0.5 text-[8px] font-black border border-[var(--border-ui)] rounded uppercase tracking-widest opacity-40 group-hover:opacity-60">⌘K</kbd>
+              </button>
               <div className="relative" ref={auditRef}>
                 <button onClick={() => { setIsAuditLogsOpen(!isAuditLogsOpen); setIsNotificationsOpen(false); }} className={`p-2 rounded-xl transition-all ${isAuditLogsOpen ? 'bg-[var(--accent)] text-white shadow-md' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-muted)]'}`}>
                   <Activity size={18} />
@@ -230,8 +255,8 @@ const MainLayout: React.FC = () => {
                 <button onClick={() => { setIsNotificationsOpen(!isNotificationsOpen); setIsAuditLogsOpen(false); }} className={`relative p-2 rounded-xl transition-all ${isNotificationsOpen ? 'bg-[var(--accent)] text-white shadow-md' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card-muted)]'}`}>
                   <Bell size={20} />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 rounded-full border-2 border-[var(--bg-card)] flex items-center justify-center text-[7px] font-black text-white">
-                      {unreadCount}
+                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-rose-500 rounded-full border-2 border-[var(--bg-card)] flex items-center justify-center text-[9px] font-black text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
                 </button>
@@ -253,8 +278,8 @@ const MainLayout: React.FC = () => {
             </Link>
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 custom-scroll relative z-0 pb-32 lg:pb-10">
-          <div className="max-w-[1440px] mx-auto">
+        <div className={`flex-1 overflow-y-auto custom-scroll relative z-0 ${location.pathname === '/team-chat' ? 'p-0 lg:p-10 pb-0 lg:pb-10' : 'p-4 sm:p-6 lg:p-10 pb-32 lg:pb-10'}`}>
+          <div className={`${location.pathname === '/team-chat' ? 'h-full' : 'max-w-[1440px]'} mx-auto`}>
             <Outlet />
           </div>
         </div>

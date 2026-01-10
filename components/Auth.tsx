@@ -55,10 +55,20 @@ const Auth: React.FC = () => {
         if (!userCred.user.emailVerified) setView('VERIFY_EMAIL');
       } else if (view === 'REGISTER') {
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
-        await sendEmailVerification(userCred.user);
+        // Set redirect URL to app subdomain for email verification
+        const actionCodeSettings = {
+          url: `${window.location.origin.includes('app.craftlyai.app') ? window.location.origin : 'https://app.craftlyai.app'}/#/`,
+          handleCodeInApp: false
+        };
+        await sendEmailVerification(userCred.user, actionCodeSettings);
         setView('VERIFY_EMAIL');
       } else if (view === 'FORGOT_PASSWORD') {
-        await sendPasswordResetEmail(auth, email);
+        // Set redirect URL to app subdomain for password reset
+        const actionCodeSettings = {
+          url: `${window.location.origin.includes('app.craftlyai.app') ? window.location.origin : 'https://app.craftlyai.app'}/#/`,
+          handleCodeInApp: false
+        };
+        await sendPasswordResetEmail(auth, email, actionCodeSettings);
         setSuccessMsg('RECOVERY PACKET DISPATCHED.');
         setTimeout(() => setView('LOGIN'), 3000);
       }
@@ -83,36 +93,36 @@ const Auth: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#020617] flex items-center justify-center p-0 lg:p-6 overflow-x-hidden relative font-sans">
+    <div className="min-h-screen w-full bg-[var(--bg-canvas)] flex items-center justify-center p-0 lg:p-6 overflow-x-hidden relative font-sans">
       {/* GLOBAL GRAPHICS LAYER: Visible on all devices */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px' }} />
-         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
-         <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-indigo-600/10 blur-[100px] rounded-full animate-pulse [animation-delay:2s]" />
+         <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(var(--text-primary) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-[var(--accent)]/10 blur-[120px] rounded-full animate-pulse" />
+         <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-[var(--accent)]/10 blur-[100px] rounded-full animate-pulse [animation-delay:2s]" />
          
          {/* Animated Background Circles - Repositioned for Global use */}
-         <div className="absolute top-1/2 left-0 lg:left-[-10%] -translate-y-1/2 w-[800px] h-[800px] border-[40px] border-indigo-500/[0.03] rounded-full animate-[spin_60s_linear_infinite] opacity-50 lg:opacity-100" />
-         <div className="absolute top-1/2 left-12 lg:left-0 -translate-y-1/2 w-[600px] h-[600px] border-[10px] border-indigo-500/[0.02] rounded-full animate-[spin_40s_linear_infinite_reverse] opacity-30 lg:opacity-100" />
+         <div className="absolute top-1/2 left-0 lg:left-[-10%] -translate-y-1/2 w-[800px] h-[800px] border-[40px] border-[var(--accent)]/[0.03] rounded-full animate-[spin_60s_linear_infinite] opacity-50 lg:opacity-100" />
+         <div className="absolute top-1/2 left-12 lg:left-0 -translate-y-1/2 w-[600px] h-[600px] border-[10px] border-[var(--accent)]/[0.02] rounded-full animate-[spin_40s_linear_infinite_reverse] opacity-30 lg:opacity-100" />
       </div>
 
       {/* Main Container - Split View */}
-      <div className="w-full max-w-7xl min-h-screen lg:min-h-[600px] lg:h-auto lg:max-h-[90vh] bg-transparent lg:bg-[#0F172A] lg:rounded-[3.5rem] lg:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col lg:flex-row relative z-10 lg:border border-white/5 mx-auto">
+      <div className="w-full max-w-7xl min-h-screen lg:min-h-[600px] lg:h-auto lg:max-h-[90vh] bg-transparent lg:bg-[var(--bg-card)] lg:rounded-[3.5rem] lg:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] dark:lg:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col lg:flex-row relative z-10 lg:border border-[var(--border-ui)] mx-auto">
         
         {/* LEFT PANEL: Artwork & Branding (Desktop Only) */}
-        <div className="hidden lg:flex lg:w-[50%] relative flex-col justify-between p-12 xl:p-16 overflow-hidden bg-gradient-to-br from-[#1E293B]/20 to-transparent">
+        <div className="hidden lg:flex lg:w-[50%] relative flex-col justify-between p-12 xl:p-16 overflow-hidden bg-gradient-to-br from-[var(--bg-card-muted)]/50 to-transparent">
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-10">
-               <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-2xl">
+               <div className="w-10 h-10 bg-[var(--accent)] rounded-xl flex items-center justify-center shadow-2xl">
                  <Zap size={22} className="text-white fill-white" />
                </div>
-               <span className="text-xl font-black text-white tracking-tighter uppercase">Craftly</span>
+               <span className="text-xl font-black text-[var(--text-primary)] tracking-tighter uppercase">CreaftlyAI</span>
             </div>
             
             <div className="space-y-6 max-w-md">
-              <h1 className="text-5xl xl:text-6xl font-black text-white tracking-tighter uppercase leading-[0.9]">
-                Login into your <br/> <span className="text-indigo-500">Workspace</span>
+              <h1 className="text-5xl xl:text-6xl font-black text-[var(--text-primary)] tracking-tighter uppercase leading-[0.9]">
+                Login into your <br/> <span className="text-[var(--accent)]">Workspace</span>
               </h1>
-              <p className="text-slate-400 font-medium text-lg leading-relaxed">
+              <p className="text-[var(--text-secondary)] font-medium text-lg leading-relaxed">
                 Let us synchronize your missions and scale your independent business nodes.
               </p>
             </div>
@@ -120,22 +130,22 @@ const Auth: React.FC = () => {
 
           <div className="relative z-10 flex items-center gap-6 opacity-30">
             <div className="flex items-center gap-2">
-               <Globe size={14} className="text-indigo-400" />
-               <span className="text-[10px] font-black uppercase tracking-widest text-white">Global Cloud Node 01</span>
+               <Globe size={14} className="text-[var(--accent)]" />
+               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Global Cloud Node 01</span>
             </div>
-            <div className="w-1 h-1 rounded-full bg-slate-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-white">AES-256 Distributed</span>
+            <div className="w-1 h-1 rounded-full bg-[var(--text-secondary)]" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">AES-256 Distributed</span>
           </div>
         </div>
 
         {/* RIGHT PANEL: The Formal Node */}
-        <div className="flex-1 bg-[#020617]/40 lg:bg-[#0B1120] relative flex items-center justify-center p-6 lg:p-10 overflow-y-auto scrollbar-hide">
+        <div className="flex-1 bg-[var(--bg-canvas)]/40 lg:bg-[var(--bg-card)] relative flex items-center justify-center p-6 lg:p-10 overflow-y-auto scrollbar-hide">
           {/* Top Info for Mobile Only - Styled to match Terminal theme */}
           <div className="lg:hidden absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-xl mb-1">
+             <div className="w-10 h-10 bg-[var(--accent)] rounded-xl flex items-center justify-center shadow-xl mb-1">
                 <Zap size={22} className="text-white fill-white" />
              </div>
-             <span className="font-black uppercase tracking-[0.3em] text-white text-[10px] opacity-40">Craftly Node System</span>
+             <span className="font-black uppercase tracking-[0.3em] text-[var(--text-secondary)] text-[10px] opacity-40">CreaftlyAI Node System</span>
           </div>
 
           <div className="w-full max-w-[400px] space-y-6 lg:space-y-8 animate-pop-in py-24 lg:py-0">
@@ -145,13 +155,13 @@ const Auth: React.FC = () => {
                     <Mail size={32} />
                  </div>
                  <div>
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sync Pending</h2>
-                    <p className="text-sm text-slate-500 mt-2">Packet dispatched to {auth.currentUser?.email}. <br/> Awaiting verification ping...</p>
+                    <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight">Sync Pending</h2>
+                    <p className="text-sm text-[var(--text-secondary)] mt-2">Packet dispatched to {auth.currentUser?.email}. <br/> Awaiting verification ping...</p>
                  </div>
                  <div className="space-y-3">
-                    <div className="flex items-center justify-center gap-3 py-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
-                       <Loader2 size={16} className="animate-spin text-indigo-500" />
-                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Satellite Scanning...</span>
+                    <div className="flex items-center justify-center gap-3 py-4 bg-[var(--bg-card-muted)] rounded-2xl border border-[var(--border-ui)]">
+                       <Loader2 size={16} className="animate-spin text-[var(--accent)]" />
+                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Satellite Scanning...</span>
                     </div>
                     <button onClick={() => auth.signOut()} className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:underline">Abort Connection</button>
                  </div>
@@ -162,22 +172,22 @@ const Auth: React.FC = () => {
                   <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Back to Terminal
                 </button>
                 <div>
-                   <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">Recover Key</h2>
-                   <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-3">Access restoration module</p>
+                   <h2 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter leading-none">Recover Key</h2>
+                   <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-widest mt-3">Access restoration module</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
-                   <Input label="Registry Email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="IDENT@REGION.NET" className="h-14 font-bold !bg-[#020617]" />
-                   <Button type="submit" loading={isLoading} className="w-full h-14 bg-indigo-600 border-indigo-600 shadow-xl text-[11px] font-black uppercase tracking-widest">Initialize Reset</Button>
+                   <Input label="Registry Email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="IDENT@REGION.NET" className="h-14 font-bold" />
+                   <Button type="submit" loading={isLoading} className="w-full h-14 shadow-xl text-[11px] font-black uppercase tracking-widest">Initialize Reset</Button>
                 </form>
                 {successMsg && <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-[10px] font-bold text-emerald-500 uppercase tracking-widest text-center">{successMsg}</div>}
               </div>
             ) : (
               <div className="space-y-6 lg:space-y-8">
                 <div className="space-y-2">
-                   <h2 className="text-3xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">
+                   <h2 className="text-3xl lg:text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter leading-none">
                      {view === 'LOGIN' ? 'Terminal Login' : 'New Registry'}
                    </h2>
-                   <p className="text-sm text-slate-500 font-medium">Access your strategic consultancy nodes.</p>
+                   <p className="text-sm text-[var(--text-secondary)] font-medium">Access your strategic consultancy nodes.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-5">
@@ -189,13 +199,13 @@ const Auth: React.FC = () => {
                         value={email} 
                         onChange={e => setEmail(e.target.value)} 
                         placeholder="name@example.com" 
-                        className="h-12 lg:h-14 !bg-[#020617] !border-white/5 focus:!border-indigo-500"
+                        className="h-12 lg:h-14"
                       />
                       <div className="space-y-2">
                          <div className="flex justify-between items-center px-1">
                             <Label>Password</Label>
                             {view === 'LOGIN' && (
-                              <button type="button" onClick={() => setView('FORGOT_PASSWORD')} className="text-[9px] font-black text-indigo-500 hover:underline uppercase tracking-widest">Lost Key?</button>
+                              <button type="button" onClick={() => setView('FORGOT_PASSWORD')} className="text-[9px] font-black text-[var(--accent)] hover:underline uppercase tracking-widest">Lost Key?</button>
                             )}
                          </div>
                          <Input 
@@ -204,7 +214,7 @@ const Auth: React.FC = () => {
                           value={password} 
                           onChange={e => setPassword(e.target.value)} 
                           placeholder="Your access secret"
-                          className="h-12 lg:h-14 !bg-[#020617] !border-white/5 focus:!border-indigo-500"
+                          className="h-12 lg:h-14"
                           rightIcon={Zap}
                           onRightIconClick={() => setShowPassword(!showPassword)}
                          />
@@ -221,7 +231,7 @@ const Auth: React.FC = () => {
                       <Button 
                         type="submit" 
                         loading={isLoading} 
-                        className="w-full h-14 bg-indigo-600 border-indigo-600 shadow-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-[0.98]"
+                        className="w-full h-14 shadow-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-[0.98]"
                       >
                         {view === 'LOGIN' ? 'Initiate Link' : 'Initialize Node'}
                       </Button>
@@ -229,16 +239,16 @@ const Auth: React.FC = () => {
                 </form>
 
                 <div className="relative py-2 flex items-center">
-                   <div className="flex-1 h-px bg-white/5" />
-                   <span className="mx-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Secure Cloud Auth</span>
-                   <div className="flex-1 h-px bg-white/5" />
+                   <div className="flex-1 h-px bg-[var(--border-ui)]" />
+                   <span className="mx-4 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Secure Cloud Auth</span>
+                   <div className="flex-1 h-px bg-[var(--border-ui)]" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                   <button onClick={() => handleSocialAuth(googleProvider)} className="flex items-center justify-center gap-3 h-12 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest text-white">
-                      <Chrome size={16} className="text-indigo-500" /> Google
+                   <button onClick={() => handleSocialAuth(googleProvider)} className="flex items-center justify-center gap-3 h-12 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-xl hover:bg-[var(--bg-card)] hover:border-[var(--accent)]/30 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      <Chrome size={16} className="text-[var(--accent)]" /> Google
                    </button>
-                   <button onClick={() => handleSocialAuth(appleProvider)} className="flex items-center justify-center gap-3 h-12 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest text-white">
+                   <button onClick={() => handleSocialAuth(appleProvider)} className="flex items-center justify-center gap-3 h-12 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-xl hover:bg-[var(--bg-card)] hover:border-[var(--accent)]/30 transition-all text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
                       <Apple size={16} /> Apple
                    </button>
                 </div>
@@ -246,12 +256,12 @@ const Auth: React.FC = () => {
                 <div className="text-center pt-2">
                   <button 
                     onClick={() => setView(view === 'LOGIN' ? 'REGISTER' : 'LOGIN')} 
-                    className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-500 transition-colors"
+                    className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                   >
                     {view === 'LOGIN' ? (
-                      <span className="flex items-center justify-center gap-2">No active node? <span className="text-indigo-600">Join Registry</span></span>
+                      <span className="flex items-center justify-center gap-2">No active node? <span className="text-[var(--accent)]">Join Registry</span></span>
                     ) : (
-                      <span className="flex items-center justify-center gap-2">Existing Node? <span className="text-indigo-600">Sync Terminal</span></span>
+                      <span className="flex items-center justify-center gap-2">Existing Node? <span className="text-[var(--accent)]">Sync Terminal</span></span>
                     )}
                   </button>
                 </div>
@@ -260,7 +270,7 @@ const Auth: React.FC = () => {
           </div>
 
           {/* Secure Session Footer */}
-          <div className="absolute bottom-8 lg:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 text-slate-600 pointer-events-none w-full justify-center">
+          <div className="absolute bottom-8 lg:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[var(--text-secondary)] pointer-events-none w-full justify-center">
              <ShieldCheck size={14} />
              <span className="text-[8px] font-black uppercase tracking-[0.3em]">End-to-End Encrypted Session</span>
           </div>

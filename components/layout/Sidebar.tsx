@@ -36,7 +36,7 @@ interface SidebarProps {
   isResizing: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, width, onResizeStart, isResizing }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, width, isResizing }) => {
   const { t, userProfile } = useBusiness();
   const navigate = useNavigate();
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
@@ -95,7 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle, width, onResiz
         </div>
         {!isCollapsed && (
           <div className="mx-4 animate-enter overflow-hidden flex-1">
-            <span className="font-black text-lg tracking-tighter uppercase block leading-none truncate">Craftly</span>
+            <span className="font-black text-lg tracking-tighter uppercase block leading-none truncate">CreaftlyAI</span>
             <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mt-1 block truncate">App</span>
           </div>
         )}

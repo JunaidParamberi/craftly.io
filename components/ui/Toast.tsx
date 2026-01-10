@@ -8,12 +8,14 @@ export const Toast: React.FC<{ toast: ToastType; onRemove: (id: string) => void 
     success: <CheckCircle2 className="text-emerald-500" size={18} />,
     error: <AlertCircle className="text-rose-500" size={18} />,
     info: <Info className="text-indigo-500" size={18} />,
+    warning: <AlertCircle className="text-amber-500" size={18} />,
   };
 
   const bgColors = {
     success: 'bg-emerald-500/10 border-emerald-500/20',
     error: 'bg-rose-500/10 border-rose-500/20',
     info: 'bg-indigo-500/10 border-indigo-500/20',
+    warning: 'bg-amber-500/10 border-amber-500/20',
   };
 
   return (

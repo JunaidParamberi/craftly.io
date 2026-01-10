@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Zap, Building2, Globe, 
   CheckCircle2, ArrowRight, ShieldCheck, 
@@ -25,6 +26,7 @@ const CURRENCIES: Currency[] = ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'QAR', 'INR',
 
 const Onboarding: React.FC = () => {
   const { user, refreshUser } = useBusiness();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Partial<UserProfile>>({
@@ -50,42 +52,43 @@ const Onboarding: React.FC = () => {
     }));
   };
 
-  const handleComplete = async () => {
-    if (!user) return;
-    setIsSubmitting(true);
+const handleComplete = async () => {
+  if (!user) return;
+  setIsSubmitting(true);
+  
+  // Generate a clean ID
+  const companyId = `CMP-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+  try {
+    const initializeTenant = httpsCallable(functions, 'initializeTenant');
     
-    const companyId = `CMP-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    // Pass ALL necessary data fields explicitly
+    await initializeTenant({
+      fullName: formData.fullName,
+      title: formData.title,
+      companyName: formData.companyName,
+      companyId: companyId,
+      currency: formData.currency,
+      branding: formData.branding,
+      website: formData.website
+    });
 
-    try {
-      const initializeTenant = httpsCallable(functions, 'initializeTenant');
-      
-      // 1. Call Cloud Function to set Custom Claims and Profile
-      await initializeTenant({
-        fullName: formData.fullName,
-        title: formData.title,
-        companyName: formData.companyName,
-        companyId: companyId,
-        currency: formData.currency,
-        branding: formData.branding
-      });
-
-      // 2. CRITICAL: Force refresh user to get new claims and await it
-      await refreshUser();
-      
-      // 3. Add a slight artificial delay to allow Auth backend state sync if needed
-      await new Promise(r => setTimeout(r, 500));
-      
-      // 4. Manual window reload or direct navigate to dash
-      window.location.href = '/#/dashboard';
-      window.location.reload();
-    } catch (error: any) {
-      console.error("Onboarding Sync Error:", error);
-      alert("Failed to initialize node: " + error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
+    // CRITICAL: Wait for the refresh to actually complete
+    await refreshUser();
+    
+    // Brief pause to ensure Firebase Auth Token is re-issued with the new 'owner' claim
+    await new Promise(r => setTimeout(r, 1000));
+    
+    // Professional redirect using React Router (no page reload)
+    navigate('/dashboard', { replace: true });
+  } catch (error: any) {
+    console.error("Onboarding Sync Error:", error);
+    // Display the specific HttpsError message you sent from the backend
+    alert(`CRITICAL ERROR: ${error.message}`);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   const next = () => setStep(s => s + 1);
   const prev = () => setStep(s => s - 1);
 

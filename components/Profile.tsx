@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Camera, Save, ShieldCheck, Loader2, Building2, Image as ImageIcon, Landmark, BadgePercent, MapPin } from 'lucide-react';
+import { User, Camera, ShieldCheck, Loader2, Building2, Image as ImageIcon, Landmark, BadgePercent, MapPin } from 'lucide-react';
 import { UserProfile, Currency } from '../types';
 import { useBusiness } from '../context/BusinessContext.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
@@ -144,7 +144,7 @@ const Profile: React.FC = () => {
         </div>
         <div className="relative z-10">
           <h2 className="text-4xl font-black tracking-tighter uppercase leading-none">Profile</h2>
-          <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.4em] mt-3">{tempProfile.fullName}</p>
+          <p className="text-[10px] text-[var(--text-secondary)] font-black uppercase tracking-[0.4em] mt-3">{tempProfile.fullName}</p>
         </div>
         <Button onClick={handlePreSave} loading={isSaving} variant="primary" className="px-10 h-14 min-w-[220px] shadow-2xl relative z-10">
           Save Profile
@@ -155,14 +155,14 @@ const Profile: React.FC = () => {
         <div className="lg:col-span-4 space-y-8">
           <Card className="p-10 flex flex-col items-center text-center group bg-indigo-500/[0.02]">
             <div className="relative mb-8">
-              <div className="w-40 h-40 rounded-[2.5rem] bg-slate-900 border-2 border-white/5 flex items-center justify-center text-5xl font-black text-white shadow-2xl overflow-hidden group-hover:border-indigo-500/50 transition-all duration-500">
+              <div className="w-40 h-40 rounded-[2.5rem] bg-[var(--bg-card-muted)] border-2 border-[var(--border-ui)] flex items-center justify-center text-5xl font-black text-[var(--text-primary)] shadow-2xl overflow-hidden group-hover:border-indigo-500/50 transition-all duration-500">
                 {tempProfile.avatarUrl ? (
                   <img src={tempProfile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span className="opacity-40">{tempProfile.fullName?.charAt(0)}</span>
                 )}
                 {isUploading === 'avatar' && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                  <div className="absolute inset-0 bg-[var(--bg-card)]/80 flex items-center justify-center backdrop-blur-sm">
                     <Loader2 size={32} className="animate-spin text-indigo-400" />
                   </div>
                 )}
@@ -189,17 +189,17 @@ const Profile: React.FC = () => {
                  </div>
                  <button onClick={() => logoInputRef.current?.click()} className="text-[9px] font-black uppercase text-indigo-500 hover:underline">Change</button>
               </header>
-              <div className="relative aspect-video bg-slate-950 rounded-3xl border border-white/5 flex items-center justify-center overflow-hidden group">
+              <div className="relative aspect-video bg-[var(--bg-card-muted)] rounded-3xl border border-[var(--border-ui)] flex items-center justify-center overflow-hidden group">
                  {tempProfile.branding?.logoUrl ? (
                    <img src={tempProfile.branding.logoUrl} alt="Logo" className="max-h-full max-w-full p-6 object-contain" />
                  ) : (
                    <div className="text-center space-y-3 opacity-20 group-hover:opacity-40 transition-opacity">
-                      <ImageIcon size={40} className="mx-auto" strokeWidth={1} />
-                      <p className="text-[8px] font-black uppercase tracking-widest">No Logo</p>
+                      <ImageIcon size={40} className="mx-auto text-[var(--text-secondary)]" strokeWidth={1} />
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">No Logo</p>
                    </div>
                  )}
                  {isUploading === 'logo' && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                    <div className="absolute inset-0 bg-[var(--bg-card)]/80 flex items-center justify-center backdrop-blur-sm">
                       <Loader2 size={32} className="animate-spin text-indigo-400" />
                     </div>
                   )}
@@ -211,7 +211,7 @@ const Profile: React.FC = () => {
 
         <div className="lg:col-span-8 space-y-8">
           <section className="p-10 bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-[3rem] space-y-10 shadow-sm">
-            <div className="flex items-center gap-4 text-indigo-500 border-b border-white/5 pb-6">
+            <div className="flex items-center gap-4 text-indigo-500 border-b border-[var(--border-ui)] pb-6">
               <ShieldCheck size={28} />
               <h3 className="text-sm font-black uppercase tracking-[0.4em]">Personal Information</h3>
             </div>
@@ -250,7 +250,7 @@ const Profile: React.FC = () => {
 
           {isOwner && (
             <section className="p-10 bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-[3rem] space-y-10 shadow-sm">
-               <div className="flex items-center gap-4 text-emerald-500 border-b border-white/5 pb-6">
+               <div className="flex items-center gap-4 text-emerald-500 border-b border-[var(--border-ui)] pb-6">
                   <Landmark size={28} />
                   <h3 className="text-sm font-black uppercase tracking-[0.4em]">Payment Details</h3>
                </div>
@@ -267,19 +267,19 @@ const Profile: React.FC = () => {
                
                <div className="flex items-center justify-between p-6 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-3xl">
                   <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-xl ${tempProfile.branding?.isTaxRegistered ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                    <div className={`p-2 rounded-xl ${tempProfile.branding?.isTaxRegistered ? 'bg-emerald-500 text-white' : 'bg-[var(--bg-card-muted)] text-[var(--text-secondary)]'}`}>
                       <BadgePercent size={20} />
                     </div>
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest">Tax Registered</p>
-                      <p className="text-[10px] text-slate-500 font-bold mt-0.5">Toggle VAT status.</p>
+                      <p className="text-[10px] text-[var(--text-secondary)] font-bold mt-0.5">Toggle VAT status.</p>
                     </div>
                   </div>
                   <input 
                     type="checkbox" 
                     checked={tempProfile.branding?.isTaxRegistered || false} 
                     onChange={e => updateBranding('isTaxRegistered', e.target.checked)} 
-                    className="w-6 h-6 rounded-lg bg-slate-900 border-white/20 text-indigo-500 focus:ring-indigo-500" 
+                    className="w-6 h-6 rounded-lg bg-[var(--input-bg)] border-[var(--border-ui)] text-indigo-500 focus:ring-indigo-500" 
                   />
                </div>
             </section>

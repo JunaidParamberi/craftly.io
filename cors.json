@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:3001", "http://localhost:3000", "http://localhost:5173", "https://*.web.app", "https://*.firebaseapp.com"],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "X-Goog-Upload-Protocol", "X-Goog-Upload-Command", "X-Goog-Upload-Offset", "X-Goog-Upload-Status"],
+    "maxAgeSeconds": 3600
+  }
+]

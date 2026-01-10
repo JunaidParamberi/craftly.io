@@ -111,13 +111,13 @@ const TemporalPicker: React.FC<TemporalPickerProps> = ({ label, value, onChange,
           <button 
             type="button" 
             onClick={handleToggle} 
-            className="w-full bg-[var(--bg-canvas)] border border-[var(--border-ui)] rounded-2xl px-5 flex items-center justify-between gap-3 text-left h-12 hover:border-[var(--accent)] transition-all group"
+            className="w-full bg-[var(--input-bg)] border border-[var(--border-ui)] rounded-2xl px-5 flex items-center justify-between gap-3 text-left h-12 hover:border-[var(--accent)] transition-all group text-[var(--text-primary)]"
           >
             <div className="flex items-center gap-3">
               <Calendar size={16} className="text-[var(--accent)] opacity-40 group-hover:opacity-100 transition-all" />
               <span className="text-xs font-black uppercase tracking-tight">{displayDate}</span>
             </div>
-            <ChevronDown size={14} className={`opacity-20 group-hover:opacity-100 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={14} className={`text-[var(--text-secondary)] opacity-40 group-hover:opacity-100 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
       ) : (

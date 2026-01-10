@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, UserPlus, X, Mail, 
   Trash2, ShieldAlert, Edit2,
-  Loader2, Cpu, Key, Fingerprint, Activity,
-  AlertCircle, CheckCircle2, Send, Copy, Check,
-  User as UserIcon, MoreHorizontal, Clock,
-  ChevronRight, ArrowUpRight, Circle, Shield,
+  Cpu, Fingerprint,
+  CheckCircle2, Copy,
+  User as UserIcon, Clock,
+  Shield,
   Users, Briefcase, CreditCard, Receipt, Box, Sparkles, Megaphone
 } from 'lucide-react';
 import { useBusiness } from '../context/BusinessContext.tsx';
@@ -191,26 +191,26 @@ const UserProvisioning: React.FC = () => {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center text-center px-6">
         <ShieldAlert size={64} className="text-rose-500 mb-6 opacity-20" />
-        <h2 className="text-3xl font-black uppercase tracking-tighter">Access Denied</h2>
-        <p className="text-slate-500 mt-4 uppercase text-[10px] font-bold tracking-[0.3em]">Identity clearance insufficient.</p>
+        <h2 className="text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">Access Denied</h2>
+        <p className="text-[var(--text-secondary)] mt-4 uppercase text-[10px] font-bold tracking-[0.3em]">Identity clearance insufficient.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-10 animate-enter pb-24 max-w-[1400px] mx-auto px-4 lg:px-0">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 p-8 lg:p-12 bg-[#0B1120] border border-white/5 rounded-[3rem] relative overflow-hidden shadow-2xl">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 p-8 lg:p-12 bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-[3rem] relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
           <Fingerprint size={280} />
         </div>
         <div className="relative z-10 space-y-4">
            <div className="flex items-center gap-5">
-             <div className="w-14 h-14 bg-indigo-600 rounded-[1.25rem] flex items-center justify-center text-white shadow-[0_0_40px_rgba(79,70,229,0.3)] border border-white/10">
+             <div className="w-14 h-14 bg-[var(--accent)] rounded-[1.25rem] flex items-center justify-center text-white shadow-[0_0_40px_rgba(79,70,229,0.3)] border border-white/10">
                <Cpu size={28} />
              </div>
              <div>
-                <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-none text-white">Directory</h2>
-                <p className="text-[11px] text-indigo-400 font-black uppercase tracking-[0.5em] mt-3 opacity-80">Operative Node Registry</p>
+                <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-none text-[var(--text-primary)]">Directory</h2>
+                <p className="text-[11px] text-[var(--accent)] font-black uppercase tracking-[0.5em] mt-3 opacity-80">Operative Node Registry</p>
              </div>
            </div>
         </div>
@@ -238,12 +238,12 @@ const UserProvisioning: React.FC = () => {
         </Button>
       </header>
 
-      <Card padding="p-0" className="overflow-hidden border border-white/5 bg-[#0B1120] rounded-[2.5rem] shadow-2xl relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.01] to-transparent pointer-events-none" />
+      <Card padding="p-0" className="overflow-hidden border border-[var(--border-ui)] bg-[var(--bg-card)] rounded-[2.5rem] shadow-2xl relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-card-muted)]/[0.01] to-transparent pointer-events-none" />
         <div className="overflow-x-auto custom-scroll relative z-10">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-900/60 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 border-b border-white/5">
+              <tr className="bg-[var(--bg-card-muted)] text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-secondary)] border-b border-[var(--border-ui)]">
                 <th className="px-10 py-7">Operative Node</th>
                 <th className="px-10 py-7 hidden lg:table-cell">Identity Profile</th>
                 <th className="px-10 py-7 text-center">Clearance</th>
@@ -252,29 +252,29 @@ const UserProvisioning: React.FC = () => {
                 <th className="px-10 py-7 text-right">Directives</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.03]">
+            <tbody className="divide-y divide-[var(--border-ui)]/30">
               {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse"><td colSpan={6} className="px-10 py-8"><div className="h-14 bg-white/[0.02] rounded-2xl w-full" /></td></tr>
+                  <tr key={i} className="animate-pulse"><td colSpan={6} className="px-10 py-8"><div className="h-14 bg-[var(--bg-card-muted)] rounded-2xl w-full" /></td></tr>
                 ))
               ) : users.length > 0 ? (
                 users.map((user) => (
-                  <tr key={user.id} className="group hover:bg-white/[0.01] transition-all cursor-default">
+                  <tr key={user.id} className="group hover:bg-[var(--bg-card-muted)]/50 transition-all cursor-default">
                     <td className="px-10 py-8">
                       <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 rounded-[1.25rem] bg-slate-950 border border-white/5 flex items-center justify-center text-indigo-400 font-black text-lg shrink-0 overflow-hidden shadow-xl group-hover:border-indigo-500/30 transition-colors">
+                        <div className="w-14 h-14 rounded-[1.25rem] bg-[var(--bg-card-muted)] border border-[var(--border-ui)] flex items-center justify-center text-[var(--accent)] font-black text-lg shrink-0 overflow-hidden shadow-xl group-hover:border-[var(--accent)]/30 transition-colors">
                           {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover" alt={user.fullName} /> : <span className="opacity-60">{user.fullName?.charAt(0) || 'U'}</span>}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[15px] font-black text-white uppercase tracking-tight truncate leading-none mb-2">{user.fullName}</p>
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-white/[0.03] px-2 py-0.5 rounded-md border border-white/5">{user.title || 'OPERATIVE'}</span>
+                          <p className="text-[15px] font-black text-[var(--text-primary)] uppercase tracking-tight truncate leading-none mb-2">{user.fullName}</p>
+                          <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest bg-[var(--bg-card-muted)] px-2 py-0.5 rounded-md border border-[var(--border-ui)]">{user.title || 'OPERATIVE'}</span>
                         </div>
                       </div>
                     </td>
                     <td className="px-10 py-8 hidden lg:table-cell">
                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-indigo-400/80"><Mail size={12} strokeWidth={2.5} /><span className="text-[11px] font-black lowercase tracking-tight">{user.email}</span></div>
-                          <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest ml-5">Registry ID: {user.id.substring(0, 8)}</p>
+                          <div className="flex items-center gap-2 text-[var(--accent)]/80"><Mail size={12} strokeWidth={2.5} /><span className="text-[11px] font-black lowercase tracking-tight">{user.email}</span></div>
+                          <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-5">Registry ID: {user.id.substring(0, 8)}</p>
                        </div>
                     </td>
                     <td className="px-10 py-8 text-center">
@@ -285,7 +285,7 @@ const UserProvisioning: React.FC = () => {
                     <td className="px-10 py-8 hidden md:table-cell">
                        <div className="flex justify-center items-center gap-1">
                           {PERMISSION_NODES.map((p) => (
-                            <div key={p.id} className={`w-6 h-6 rounded-md flex items-center justify-center transition-opacity ${(user.permissions || []).includes(p.id) ? 'bg-indigo-500/10 text-indigo-400' : 'opacity-10 grayscale'}`} title={p.label}>
+                            <div key={p.id} className={`w-6 h-6 rounded-md flex items-center justify-center transition-opacity ${(user.permissions || []).includes(p.id) ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'opacity-10 grayscale'}`} title={p.label}>
                                <p.icon size={12} />
                             </div>
                           ))}
@@ -293,46 +293,46 @@ const UserProvisioning: React.FC = () => {
                     </td>
                     <td className="px-10 py-8 hidden xl:table-cell text-center">
                        <div className="flex flex-col items-center gap-1 opacity-60">
-                          <div className="flex items-center gap-2 text-[10px] font-black text-white tabular-nums uppercase tracking-widest"><Clock size={12} />{formatLastActive(user.lastSeen)}</div>
+                          <div className="flex items-center gap-2 text-[10px] font-black text-[var(--text-primary)] tabular-nums uppercase tracking-widest"><Clock size={12} />{formatLastActive(user.lastSeen)}</div>
                        </div>
                     </td>
                     <td className="px-10 py-8 text-right">
                       <div className="flex justify-end gap-2.5">
-                        <button onClick={() => handleEdit(user)} className="w-10 h-10 flex items-center justify-center bg-slate-900 border border-white/5 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all shadow-xl active:scale-90"><Edit2 size={16}/></button>
+                        <button onClick={() => handleEdit(user)} className="w-10 h-10 flex items-center justify-center bg-[var(--bg-card-muted)] border border-[var(--border-ui)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white rounded-xl transition-all shadow-xl active:scale-90"><Edit2 size={16}/></button>
                         {user.id !== userProfile.id && (
-                          <button onClick={() => setConfirmDeleteId(user.id)} className="w-10 h-10 flex items-center justify-center bg-slate-900 border border-white/5 text-rose-500 hover:bg-rose-600 hover:text-white rounded-xl transition-all shadow-xl active:scale-90"><Trash2 size={16}/></button>
+                          <button onClick={() => setConfirmDeleteId(user.id)} className="w-10 h-10 flex items-center justify-center bg-[var(--bg-card-muted)] border border-[var(--border-ui)] text-rose-500 hover:bg-rose-600 hover:text-white rounded-xl transition-all shadow-xl active:scale-90"><Trash2 size={16}/></button>
                         )}
                       </div>
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={6} className="px-10 py-32 text-center"><EmptyState icon={UserIcon} title="Registry Node Vacuum" description="Provision nodes to begin team collaboration." action={<Button onClick={() => setShowModal(true)} variant="outline" className="h-12 border-indigo-500/30 text-indigo-400 mt-6">Provision Node</Button>} /></td></tr>
+                <tr><td colSpan={6} className="px-10 py-32 text-center"><EmptyState icon={UserIcon} title="Registry Node Vacuum" description="Provision nodes to begin team collaboration." action={<Button onClick={() => setShowModal(true)} variant="outline" className="h-12 border-[var(--accent)]/30 text-[var(--accent)] mt-6">Provision Node</Button>} /></td></tr>
               )}
             </tbody>
           </table>
         </div>
-        <footer className="p-8 bg-slate-900/30 border-t border-white/5 flex items-center justify-between">
+        <footer className="p-8 bg-[var(--bg-card-muted)] border-t border-[var(--border-ui)] flex items-center justify-between">
            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">{users.filter(u => u.status === 'ONLINE').length} Active</span></div>
-              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-slate-700" /><span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">{users.filter(u => u.status !== 'ONLINE').length} Inactive</span></div>
+              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-widest">{users.filter(u => u.status === 'ONLINE').length} Active</span></div>
+              <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)]/40" /><span className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-widest">{users.filter(u => u.status !== 'ONLINE').length} Inactive</span></div>
            </div>
-           <div className="flex items-center gap-3 text-indigo-500/40"><ShieldCheck size={14} /><span className="text-[9px] font-black uppercase tracking-[0.3em]">Registry AES-256 Protected</span></div>
+           <div className="flex items-center gap-3 text-[var(--accent)]/40"><ShieldCheck size={14} /><span className="text-[9px] font-black uppercase tracking-[0.3em]">Registry AES-256 Protected</span></div>
         </footer>
       </Card>
 
       {showModal && createPortal(
         <div className="exec-modal-overlay">
-          <div className="w-full max-w-3xl mx-auto bg-[#0F172A] border border-white/10 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] animate-pop-in relative overflow-hidden">
-             <header className="p-8 lg:p-10 flex justify-between items-center border-b border-white/5 bg-slate-950/20 relative z-10">
+          <div className="w-full max-w-3xl mx-auto bg-[var(--bg-card)] border border-[var(--border-ui)] rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] animate-pop-in relative overflow-hidden">
+             <header className="p-8 lg:p-10 flex justify-between items-center border-b border-[var(--border-ui)] bg-[var(--bg-card-muted)] relative z-10">
                 <div className="flex items-center gap-5">
-                   <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-2xl border border-indigo-500/20 flex items-center justify-center shadow-lg"><Fingerprint size={24}/></div>
+                   <div className="w-12 h-12 bg-[var(--accent)]/10 text-[var(--accent)] rounded-2xl border border-[var(--accent)]/20 flex items-center justify-center shadow-lg"><Fingerprint size={24}/></div>
                    <div>
-                     <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">{editingUser ? 'Sync Updates' : 'Provision Node'}</h3>
-                     <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.4em] mt-2">Identity Configuration</p>
+                     <h3 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight leading-none">{editingUser ? 'Sync Updates' : 'Provision Node'}</h3>
+                     <p className="text-[9px] font-black text-[var(--accent)] uppercase tracking-[0.4em] mt-2">Identity Configuration</p>
                    </div>
                 </div>
-                <button onClick={() => { setShowModal(false); setEditingUser(null); }} className="p-3 text-slate-500 hover:text-white hover:bg-white/5 rounded-2xl transition-all"><X size={24} /></button>
+                <button onClick={() => { setShowModal(false); setEditingUser(null); }} className="p-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-muted)] rounded-2xl transition-all"><X size={24} /></button>
              </header>
 
              <div className="p-10 lg:p-12 space-y-10 custom-scroll max-h-[80vh] overflow-y-auto">
@@ -341,31 +341,31 @@ const UserProvisioning: React.FC = () => {
                       <div className="flex flex-col items-center text-center space-y-6">
                         <div className="w-20 h-20 bg-emerald-500/10 rounded-3xl flex items-center justify-center text-emerald-500 border border-emerald-500/20 shadow-2xl"><CheckCircle2 size={40} /></div>
                         <div>
-                          <h4 className="text-2xl font-black text-white uppercase tracking-tight">Identity Indexed</h4>
-                          <p className="text-sm text-slate-400 font-medium mt-3">Transfer token to operative:</p>
+                          <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight">Identity Indexed</h4>
+                          <p className="text-sm text-[var(--text-secondary)] font-medium mt-3">Transfer token to operative:</p>
                         </div>
                       </div>
-                      <div className="bg-slate-950 border border-white/5 rounded-2xl p-6 text-[11px] font-mono break-all text-indigo-300 shadow-inner relative group cursor-pointer" onClick={() => { navigator.clipboard.writeText(successData.joinLink); showToast('Link Buffered'); }}>
-                        <div className="absolute top-4 right-4 text-slate-700 group-hover:text-indigo-500 transition-colors"><Copy size={14} /></div>{successData.joinLink}
+                      <div className="bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-2xl p-6 text-[11px] font-mono break-all text-[var(--accent)] shadow-inner relative group cursor-pointer" onClick={() => { navigator.clipboard.writeText(successData.joinLink); showToast('Link Buffered'); }}>
+                        <div className="absolute top-4 right-4 text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors"><Copy size={14} /></div>{successData.joinLink}
                       </div>
                       <Button variant="primary" onClick={() => setShowModal(false)} className="w-full h-16 text-xs font-black uppercase tracking-widest shadow-2xl">Deactivate Terminal</Button>
                   </div>
                 ) : (
                   <form onSubmit={handleAction} className="space-y-10 relative z-10">
                       {!editingUser && (
-                        <div className="flex p-1.5 bg-slate-950 border border-white/5 rounded-2xl mb-2 shadow-inner">
-                            <button type="button" onClick={() => setProvisionMode('DIRECT')} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${provisionMode === 'DIRECT' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500'}`}>Internal Node</button>
-                            <button type="button" onClick={() => setProvisionMode('INVITE')} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${provisionMode === 'INVITE' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500'}`}>Remote Link</button>
+                        <div className="flex p-1.5 bg-[var(--bg-card-muted)] border border-[var(--border-ui)] rounded-2xl mb-2 shadow-inner">
+                            <button type="button" onClick={() => setProvisionMode('DIRECT')} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${provisionMode === 'DIRECT' ? 'bg-[var(--accent)] text-white shadow-lg' : 'text-[var(--text-secondary)]'}`}>Internal Node</button>
+                            <button type="button" onClick={() => setProvisionMode('INVITE')} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${provisionMode === 'INVITE' ? 'bg-[var(--accent)] text-white shadow-lg' : 'text-[var(--text-secondary)]'}`}>Remote Link</button>
                         </div>
                       )}
                       
                       {error && <div className="p-5 bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-black uppercase rounded-2xl flex items-center gap-4"><ShieldAlert size={18}/>{error}</div>}
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <Input label="Operative Name" required value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value.toUpperCase() })} className="!bg-[#020617] !border-white/5 text-white h-14 font-black" />
-                        <Input label="Mission Designation" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value.toUpperCase() })} placeholder="E.G. STRATEGIST" className="!bg-[#020617] !border-white/5 text-white h-14 font-black" />
-                        <Input label="Registry Email" type="email" required disabled={!!editingUser} value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="!bg-[#020617] !border-white/5 text-white h-14 font-black" />
-                        <Select label="Security Clearance" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })} className="!bg-[#020617] !border-white/5 text-white h-14 font-black uppercase">
+                        <Input label="Operative Name" required value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value.toUpperCase() })} className="!bg-[var(--input-bg)] !border-[var(--border-ui)] text-[var(--text-primary)] h-14 font-black" />
+                        <Input label="Mission Designation" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value.toUpperCase() })} placeholder="E.G. STRATEGIST" className="!bg-[var(--input-bg)] !border-[var(--border-ui)] text-[var(--text-primary)] h-14 font-black" />
+                        <Input label="Registry Email" type="email" required disabled={!!editingUser} value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="!bg-[var(--input-bg)] !border-[var(--border-ui)] text-[var(--text-primary)] h-14 font-black" />
+                        <Select label="Security Clearance" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })} className="!bg-[var(--input-bg)] !border-[var(--border-ui)] text-[var(--text-primary)] h-14 font-black uppercase">
                           <option value="EMPLOYEE">STAFF OPERATIVE</option>
                           <option value="OWNER">ADMIN AUTHORITY (OWNER)</option>
                           <option value="CLIENT">EXTERNAL NODE (CLIENT)</option>
@@ -373,8 +373,8 @@ const UserProvisioning: React.FC = () => {
                       </div>
 
                       <div className="space-y-6">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                           <Label className="!text-slate-400 !opacity-100 uppercase tracking-[0.4em]">Permissions Matrix</Label>
+                        <div className="flex items-center justify-between border-b border-[var(--border-ui)] pb-4">
+                           <Label className="!text-[var(--text-secondary)] !opacity-100 uppercase tracking-[0.4em]">Permissions Matrix</Label>
                            {formData.role === 'OWNER' && <Badge variant="success" className="!text-[8px]">Full Access Override</Badge>}
                         </div>
                         <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${formData.role === 'OWNER' ? 'opacity-30 pointer-events-none' : ''}`}>
@@ -383,14 +383,14 @@ const UserProvisioning: React.FC = () => {
                               key={p.id}
                               type="button"
                               onClick={() => togglePermission(p.id)}
-                              className={`flex items-start gap-4 p-4 rounded-2xl border-2 transition-all text-left group ${formData.permissions.includes(p.id) ? 'bg-indigo-600/10 border-indigo-600 shadow-md' : 'bg-slate-950 border-transparent hover:border-white/10'}`}
+                              className={`flex items-start gap-4 p-4 rounded-2xl border-2 transition-all text-left group ${formData.permissions.includes(p.id) ? 'bg-[var(--accent)]/10 border-[var(--accent)] shadow-md' : 'bg-[var(--bg-card-muted)] border-transparent hover:border-[var(--border-ui)]'}`}
                             >
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg ${formData.permissions.includes(p.id) ? 'bg-indigo-500 text-white' : 'bg-slate-900 text-slate-600 group-hover:text-slate-400'}`}>
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg ${formData.permissions.includes(p.id) ? 'bg-[var(--accent)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
                                 <p.icon size={18} />
                               </div>
                               <div className="min-w-0">
-                                 <p className="text-[11px] font-black uppercase tracking-tight text-white mb-1 leading-none">{p.label}</p>
-                                 <p className="text-[9px] text-slate-500 font-medium leading-tight line-clamp-2">{p.description}</p>
+                                 <p className="text-[11px] font-black uppercase tracking-tight text-[var(--text-primary)] mb-1 leading-none">{p.label}</p>
+                                 <p className="text-[9px] text-[var(--text-secondary)] font-medium leading-tight line-clamp-2">{p.description}</p>
                               </div>
                             </button>
                           ))}
@@ -399,11 +399,11 @@ const UserProvisioning: React.FC = () => {
 
                       {(provisionMode === 'DIRECT' || editingUser) && (
                         <div className="space-y-2">
-                          <Input label={editingUser ? "Reset Secret Key (Optional)" : "Access Secret Key"} type="password" required={!editingUser} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="!bg-[#020617] !border-white/5 text-white h-14 font-black" />
+                          <Input label={editingUser ? "Reset Secret Key (Optional)" : "Access Secret Key"} type="password" required={!editingUser} value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="!bg-[var(--input-bg)] !border-[var(--border-ui)] text-[var(--text-primary)] h-14 font-black" />
                         </div>
                       )}
 
-                      <div className="pt-4"><Button type="submit" loading={isProcessing} className="w-full h-18 !bg-indigo-600 !border-indigo-600 text-white rounded-3xl shadow-2xl uppercase tracking-[0.3em] font-black text-xs">{editingUser ? 'Sync Node Updates' : 'Initialize Node'}</Button></div>
+                      <div className="pt-4"><Button type="submit" loading={isProcessing} className="w-full h-18 !bg-[var(--accent)] !border-[var(--accent)] text-white rounded-3xl shadow-2xl uppercase tracking-[0.3em] font-black text-xs">{editingUser ? 'Sync Node Updates' : 'Initialize Node'}</Button></div>
                   </form>
                 )}
              </div>

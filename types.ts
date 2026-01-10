@@ -61,6 +61,8 @@ export interface UserBranding {
   campaignPhone?: string;
   country: string;
   isTaxRegistered: boolean;
+  defaultInvoiceTemplate?: InvoiceTemplate;
+  defaultProposalTemplate?: InvoiceTemplate;
 }
 
 export interface UserProfile {
@@ -107,6 +109,15 @@ export interface TeamMessage {
   fileName?: string;
   fileType?: string;
   fileSize?: number;
+  deletedFor?: string[]; // Array of user IDs for whom this message is deleted
+  isEdited?: boolean; // Whether the message has been edited
+  linkPreview?: {
+    url: string;
+    title?: string;
+    description?: string;
+    image?: string;
+    siteName?: string;
+  };
 }
 
 export interface AuditEntry {
@@ -129,9 +140,10 @@ export interface Notification {
   type: 'update' | 'deadline' | 'finance' | 'system';
   isRead: boolean;
   link?: View;
+  linkId?: string; // For linking to specific items like client/:id, project/:id, etc.
 }
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 export interface Toast {
   id: string;
   message: string;
@@ -221,6 +233,7 @@ export interface Proposal {
   aiDraftContent?: string;
   vibe?: 'Corporate' | 'Creative';
   currency: Currency;
+  templateType?: InvoiceTemplate;
 }
 
 export interface InvoiceItem {
@@ -231,7 +244,7 @@ export interface InvoiceItem {
   isService?: boolean;
 }
 
-export type InvoiceTemplate = 'Minimalist_Dark' | 'Swiss_Clean' | 'Corporate_Elite' | 'Cyber_Obsidian' | 'Modern_Soft';
+export type InvoiceTemplate = 'Minimalist_Dark' | 'Swiss_Clean' | 'Corporate_Elite' | 'Cyber_Obsidian' | 'Modern_Soft' | 'Classic_Blue' | 'Elegant_Gold' | 'Tech_Modern';
 export type MatchStatus = 'NOT_CHECKED' | 'MATCHED' | 'DISCREPANCY';
 export type ReoccurrenceFrequency = 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
 
@@ -263,6 +276,11 @@ export interface Invoice {
   isReoccurring: boolean;
   reoccurrenceFrequency?: ReoccurrenceFrequency;
   reoccurrenceDate?: string;
+  autoSend?: boolean;
+  parentInvoiceId?: string;
+  lastProcessedAt?: any;
+  publicToken?: string; // Public shareable token for link access
+  isPublic?: boolean; // Whether invoice is publicly accessible
 }
 
 export interface Voucher {
@@ -274,6 +292,7 @@ export interface Voucher {
   category: string;
   date: string;
   status: 'Pending' | 'Paid Back' | 'Reimbursed';
+  type: 'EXPENSE' | 'RECEIPT';
 }
 
 export interface Email {

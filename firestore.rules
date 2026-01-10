@@ -40,18 +40,50 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
     
-    // Multi-tenant ERP Data Scoping
-    match /{collectionName}/{docId} {
+    // Public Invoice Access (no auth required for public invoices)
+    match /invoices/{invoiceId} {
+      // Allow public read access (both get and list) for invoices with isPublic = true
+      // OR authenticated access for company members
+      // For list queries: resource.data will be checked for each document returned
+      // For get: resource will be the document being read
+      allow read: if 
+        // Public access (no auth required)
+        (resource != null && resource.data.isPublic == true) ||
+        // Authenticated access: company members can access their invoices
+        (isAuthenticated() && (
+          isSuperAdmin() || (
+            resource != null && belongsToCompany(resource.data.companyId)
+          )
+        ));
       
-      // READ, UPDATE, DELETE: 
-      // Rule allows 'list' operations (queries) if the query filter exactly matches the companyId requirement.
-      allow read, update, delete: if isSuperAdmin() || (
-        resource != null && belongsToCompany(resource.data.companyId)
+      // Update and delete require authentication
+      allow update, delete: if isAuthenticated() && (
+        isSuperAdmin() || (
+          resource != null && belongsToCompany(resource.data.companyId)
+        )
+      );
+      
+      // CREATE with public access setup
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() || (
+          request.resource != null && belongsToCompany(request.resource.data.companyId)
+        )
+      );
+    }
+    
+    // Multi-tenant ERP Data Scoping (for other collections)
+    match /{collectionName}/{docId} {
+      // Skip invoices as they're handled above
+      allow read, update, delete: if collectionName != 'invoices' && (
+        isSuperAdmin() || (
+          resource != null && belongsToCompany(resource.data.companyId)
+        )
       );
 
-      // CREATE: 
-      allow create: if isSuperAdmin() || (
-        request.resource != null && belongsToCompany(request.resource.data.companyId)
+      allow create: if collectionName != 'invoices' && (
+        isSuperAdmin() || (
+          request.resource != null && belongsToCompany(request.resource.data.companyId)
+        )
       );
     }
 

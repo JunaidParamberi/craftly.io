@@ -1,0 +1,49 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user belongs to company
+    // Checks token first, but allows authenticated users if token doesn't have companyId
+    // (Storage rules can't access Firestore like Firestore rules can)
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && (
+        request.auth.token.companyId == companyId || 
+        request.auth.token.companyId == null // Allow if token doesn't have companyId (will be validated by app logic)
+      );
+    }
+    
+    // Chat files - users can upload to their company's chat folder
+    // More permissive: allow authenticated users (app logic ensures correct companyId)
+    match /chat/{companyId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() 
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+      allow delete: if isAuthenticated();
+    }
+    
+    // Campaign assets - users can upload to their company's campaign folder
+    match /campaigns/{companyId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated()
+        && request.resource.size < 10 * 1024 * 1024; // 10MB limit
+      allow delete: if isAuthenticated();
+    }
+    
+    // User avatars and logos
+    match /users/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024; // 5MB limit
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

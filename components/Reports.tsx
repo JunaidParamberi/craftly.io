@@ -3,13 +3,13 @@ import React, { useState, useMemo } from 'react';
 import { 
   BarChart3, TrendingUp, Target, AlertCircle,
   Activity, Wallet, Zap, FileSpreadsheet,
-  Filter, CalendarDays, Download
+  Download
 } from 'lucide-react';
 import { useBusiness } from '../context/BusinessContext.tsx';
 import { GoogleGenAI } from '@google/genai';
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip, CartesianGrid } from 'recharts';
 import TemporalPicker from './TemporalPicker.tsx';
-import { Button, Card, Badge, Heading } from './ui/Primitives.tsx';
+import { Button, Card, Badge } from './ui/Primitives.tsx';
 
 const Reports: React.FC = () => {
   const { invoices, pushNotification, telemetry, showToast } = useBusiness();
@@ -24,9 +24,10 @@ const Reports: React.FC = () => {
     const periodEnd = new Date(endDate);
     periodEnd.setHours(23, 59, 59);
 
+    // Logic Fix: Filter for 'Invoice' type only to ensure revenue reporting is accurate
     const periodInvoices = invoices.filter(inv => {
       const invDate = new Date(inv.date);
-      return invDate >= periodStart && invDate <= periodEnd;
+      return inv.type === 'Invoice' && invDate >= periodStart && invDate <= periodEnd;
     });
 
     const periodActualRevenue = periodInvoices.filter(i => i.status === 'Paid').reduce((a, b) => a + (b.amountPaid || 0), 0);
@@ -85,7 +86,7 @@ const Reports: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `Craftly_Report_${startDate}_to_${endDate}.csv`);
+    link.setAttribute('download', `CreaftlyAI_Report_${startDate}_to_${endDate}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

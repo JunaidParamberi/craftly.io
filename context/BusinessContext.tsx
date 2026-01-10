@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
   Client, CatalogItem, Proposal, Notification, UserProfile, 
@@ -9,6 +9,7 @@ import { API, DEFAULT_WIDGETS } from '../services/api';
 import { auth, db } from '../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { translations } from '../services/translations';
+import { notificationService } from '../services/notificationService';
 
 interface BusinessContextType {
   user: User | null;
@@ -51,6 +52,7 @@ interface BusinessContextType {
   addAuditLog: (action: AuditEntry['action'], itemType: string, targetId: string) => Promise<void>;
   vouchers: Voucher[];
   setVouchers: React.Dispatch<React.SetStateAction<Voucher[]>>;
+  saveVoucher: (voucher: Voucher) => Promise<void>;
   deleteVoucher: (id: string) => Promise<void>;
   updateDashboardConfig: (config: WidgetConfig[]) => Promise<void>;
   toasts: Toast[];
@@ -111,25 +113,38 @@ export const BusinessProvider: React.FC<{ children: ReactNode }> = ({ children }
         setUser(fbUser);
         setLoading(true); 
         
-        unsubProfile = onSnapshot(doc(db, 'users', fbUser.uid), (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserProfile;
-            // Robust normalization: Ensure permissions is always an array
-            data.permissions = Array.isArray(data.permissions) ? data.permissions : [];
-            
-            if (!data.dashboardConfig || data.dashboardConfig.length === 0) {
-              data.dashboardConfig = DEFAULT_WIDGETS;
+        unsubProfile = onSnapshot(
+          doc(db, 'users', fbUser.uid), 
+          (docSnap) => {
+            try {
+              if (docSnap.exists()) {
+                const data = docSnap.data() as UserProfile;
+                data.permissions = Array.isArray(data.permissions) ? data.permissions : [];
+                if (!data.dashboardConfig || !Array.isArray(data.dashboardConfig) || data.dashboardConfig.length === 0) {
+                  data.dashboardConfig = DEFAULT_WIDGETS;
+                }
+                setUserProfileState({ ...data });
+              } else {
+                setUserProfileState(null);
+              }
+            } catch (error) {
+              console.error("Error processing user profile:", error);
+              setUserProfileState(null);
+            } finally {
+              setLoading(false);
             }
-            setUserProfileState({ ...data });
-          } else {
+          }, 
+          (err: any) => {
+            console.error("Identity sync failure:", err);
+            if (err?.code === 'permission-denied') {
+              console.error("Permission denied: Check Firestore security rules");
+            } else if (err?.code === 'unavailable') {
+              console.error("Service unavailable: Check internet connection");
+            }
             setUserProfileState(null);
+            setLoading(false);
           }
-          setLoading(false);
-        }, (err) => {
-          console.error("Identity sync failure:", err);
-          setUserProfileState(null);
-          setLoading(false);
-        });
+        );
       } else {
         if (unsubProfile) unsubProfile();
         setUser(null);
@@ -144,6 +159,8 @@ export const BusinessProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
   }, []);
 
+  const previousNotificationsRef = useRef<string[]>([]);
+
   useEffect(() => {
     if (!user || !userProfile?.companyId) return;
     const cid = userProfile.companyId;
@@ -154,7 +171,26 @@ export const BusinessProvider: React.FC<{ children: ReactNode }> = ({ children }
       unsubscribes.push(API.subscribeToTenantCollection<CatalogItem>('catalog', cid, setCatalog));
       unsubscribes.push(API.subscribeToTenantCollection<Proposal>('proposals', cid, setProposalsRaw));
       unsubscribes.push(API.subscribeToTenantCollection<Invoice>('invoices', cid, setInvoicesRaw));
-      unsubscribes.push(API.subscribeToTenantCollection<Notification>('notifications', cid, setNotifications));
+      unsubscribes.push(API.subscribeToTenantCollection<Notification>('notifications', cid, (newNotifications) => {
+        // Store previous notification IDs
+        const previousIds = previousNotificationsRef.current;
+        const currentIds = newNotifications.map(n => n.id);
+        
+        // Find new notifications (not in previous list)
+        const newNotifs = newNotifications.filter(n => !previousIds.includes(n.id));
+        
+        // Show browser notifications for new unread notifications
+        newNotifs.forEach(notif => {
+          if (!notif.isRead) {
+            notificationService.showBrowserNotification(notif);
+            notificationService.addToHistory(notif);
+          }
+        });
+        
+        // Update previous notifications
+        previousNotificationsRef.current = currentIds;
+        setNotifications(newNotifications);
+      }));
       unsubscribes.push(API.subscribeToTenantCollection<ChatThread>('chat_threads', cid, (data) => {
         setChatThreads(data.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
       }));
@@ -183,77 +219,195 @@ export const BusinessProvider: React.FC<{ children: ReactNode }> = ({ children }
   const t = useCallback((key: string) => translations[language]?.[key] || translations['EN']?.[key] || key, [language]);
   const setLanguage = (lang: Language) => { setLanguageState(lang); localStorage.setItem('craftly_language', lang); };
 
-  const setUserProfile = async (profile: UserProfile) => {
-    await API.saveProfile(profile);
-  };
+  const setUserProfile = async (profile: UserProfile) => { await API.saveProfile(profile); };
 
   const telemetry = useMemo(() => {
     const settledInvoices = invoicesRaw.filter(i => i.type === 'Invoice' && i.status === 'Paid');
     const pendingInvoices = invoicesRaw.filter(i => i.type === 'Invoice' && i.status !== 'Paid');
     const today = new Date();
-    const totalEarnings = settledInvoices.reduce((acc, curr) => acc + (curr.amountAED || 0), 0);
-    const totalExpenses = vouchers.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    
+    const totalEarningsFromInvoices = settledInvoices.reduce((acc, curr) => acc + (curr.amountAED || 0), 0);
+    const totalRevenueFromVouchers = vouchers.filter(v => v.type === 'RECEIPT').reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    const totalRevenue = totalEarningsFromInvoices + totalRevenueFromVouchers;
+    const totalExpenses = vouchers.filter(v => v.type === 'EXPENSE').reduce((acc, curr) => acc + (curr.amount || 0), 0);
+      
     return {
-      totalEarnings, totalExpenses, profitMargin: totalEarnings > 0 ? ((totalEarnings - totalExpenses) / totalEarnings) * 100 : 0,
+      totalEarnings: totalRevenue, 
+      totalExpenses, 
+      profitMargin: totalRevenue > 0 ? ((totalRevenue - totalExpenses) / totalRevenue) * 100 : 0,
       pendingRevenue: pendingInvoices.reduce((acc, curr) => acc + (curr.amountAED || 0), 0),
-      activeMissions: proposalsRaw.length, clientCount: clientsRaw.length, unpaidCount: pendingInvoices.length, overdueCount: pendingInvoices.filter(i => new Date(i.dueDate) < today).length,
-      corporateTaxProgress: Math.min(100, (totalEarnings / 375000) * 100), estimatedTaxLiability: totalEarnings > 375000 ? (totalEarnings - 375000) * 0.09 : 0
+      activeMissions: proposalsRaw.length, 
+      clientCount: clientsRaw.length, 
+      unpaidCount: pendingInvoices.length, 
+      overdueCount: pendingInvoices.filter(i => new Date(i.dueDate) < today).length,
+      corporateTaxProgress: Math.min(100, (totalRevenue / 375000) * 100), 
+      estimatedTaxLiability: totalRevenue > 375000 ? (totalRevenue - 375000) * 0.09 : 0
     };
   }, [invoicesRaw, proposalsRaw, clientsRaw, vouchers]);
 
   const addClient = async (data: Partial<Client>) => {
-    const newC = { 
-      id: `CLI-${Date.now()}`, 
-      companyId: userProfile?.companyId,
-      totalLTV: 0, 
-      createdAt: new Date().toISOString(), 
-      currency: userProfile?.currency || 'AED', 
-      status: 'Lead', 
-      ...data 
-    } as Client;
-    await API.saveItem('clients', newC);
-    showToast(`Partner node indexed`);
-    return newC;
+    try {
+      if (!userProfile?.companyId) {
+        throw new Error("Company ID not found. Please complete onboarding.");
+      }
+      if (!data.name || typeof data.name !== 'string' || data.name.trim() === '') {
+        throw new Error("Client name is required");
+      }
+      const newC = { 
+        id: `CLI-${Date.now()}`, 
+        companyId: userProfile.companyId, 
+        totalLTV: 0, 
+        createdAt: new Date().toISOString(), 
+        currency: userProfile?.currency || 'AED', 
+        status: 'Lead', 
+        ...data 
+      } as Client;
+      await API.saveItem('clients', newC);
+      showToast(`Partner node indexed`);
+      return newC;
+    } catch (error: any) {
+      console.error("Error adding client:", error);
+      showToast(error?.message || 'Failed to add client', 'error');
+      throw error;
+    }
   };
 
-  const updateClient = async (updated: Client) => { await API.saveItem('clients', updated); showToast(`Partner node updated`); };
-  const deleteClient = async (id: string) => { await API.deleteItem('clients', id); showToast(`Partner node decommissioned`, 'info'); };
+  const updateClient = async (updated: Client) => {
+    try {
+      if (!updated || !updated.id) {
+        throw new Error("Invalid client data");
+      }
+      await API.saveItem('clients', updated);
+      showToast(`Partner node updated`);
+    } catch (error: any) {
+      console.error("Error updating client:", error);
+      showToast(error?.message || 'Failed to update client', 'error');
+      throw error;
+    }
+  };
   
-  const commitProject = async (p: Partial<Proposal>) => { 
-    const finalStatus = userProfile?.role === 'EMPLOYEE' ? 'Pending Approval' : (p.status || 'Draft');
-    const finalP = { 
-      ...p, 
-      id: p.id || `PRO-${Date.now()}`, 
-      companyId: userProfile?.companyId,
-      status: finalStatus
-    } as Proposal;
-    await API.saveItem('proposals', finalP); 
-    showToast(finalStatus === 'Pending Approval' ? 'Awaiting authority clearance' : `Mission ${finalP.title} registered`); 
+  const deleteClient = async (id: string) => {
+    try {
+      if (!id || typeof id !== 'string') {
+        throw new Error("Invalid client ID");
+      }
+      await API.deleteItem('clients', id);
+      showToast(`Partner node decommissioned`, 'info');
+    } catch (error: any) {
+      console.error("Error deleting client:", error);
+      showToast(error?.message || 'Failed to delete client', 'error');
+      throw error;
+    }
   };
-
-  const updateProposal = async (p: Proposal) => { await API.saveItem('proposals', p); showToast(`Mission updated`); };
-  const deleteProposal = async (id: string) => { await API.deleteItem('proposals', id); showToast(`Mission purged`, 'info'); };
   
-  const addInvoice = async (data: Partial<Invoice>) => { 
-    const isEmployee = userProfile?.role === 'EMPLOYEE';
-    const newInv = API.createInvoice({
-      ...data,
-      status: isEmployee ? 'Pending Approval' : (data.status || 'Draft')
-    }, userProfile?.companyId || 'global'); 
-    await API.saveItem('invoices', newInv); 
-    showToast(isEmployee ? 'Awaiting authority clearance' : `${newInv.type} registered`); 
-    return newInv; 
+  const commitProject = async (p: Partial<Proposal>) => {
+    try {
+      if (!userProfile?.companyId) {
+        throw new Error("Company ID not found. Please complete onboarding.");
+      }
+      if (!p.title || typeof p.title !== 'string' || p.title.trim() === '') {
+        throw new Error("Project title is required");
+      }
+      const finalStatus = userProfile?.role === 'EMPLOYEE' ? 'Pending Approval' : (p.status || 'Draft');
+      const finalP = { 
+        ...p, 
+        id: p.id || `PRO-${Date.now()}`, 
+        companyId: userProfile.companyId, 
+        status: finalStatus 
+      } as Proposal;
+      await API.saveItem('proposals', finalP);
+      showToast(finalStatus === 'Pending Approval' ? 'Awaiting authority clearance' : `Mission ${finalP.title} registered`);
+    } catch (error: any) {
+      console.error("Error committing project:", error);
+      showToast(error?.message || 'Failed to save project', 'error');
+      throw error;
+    }
   };
 
-  const updateInvoice = async (updated: Invoice) => { await API.saveItem('invoices', updated); showToast(`Document node synced`); };
-  const deleteInvoice = async (id: string) => { await API.deleteItem('invoices', id); showToast(`Document purged`, 'info'); };
+  const updateProposal = async (p: Proposal) => {
+    try {
+      if (!p || !p.id) {
+        throw new Error("Invalid proposal data");
+      }
+      await API.saveItem('proposals', p);
+      showToast(`Mission updated`);
+    } catch (error: any) {
+      console.error("Error updating proposal:", error);
+      showToast(error?.message || 'Failed to update proposal', 'error');
+      throw error;
+    }
+  };
+  
+  const deleteProposal = async (id: string) => {
+    try {
+      if (!id || typeof id !== 'string') {
+        throw new Error("Invalid proposal ID");
+      }
+      await API.deleteItem('proposals', id);
+      showToast(`Mission purged`, 'info');
+    } catch (error: any) {
+      console.error("Error deleting proposal:", error);
+      showToast(error?.message || 'Failed to delete proposal', 'error');
+      throw error;
+    }
+  };
+  
+  const addInvoice = async (data: Partial<Invoice>) => {
+    try {
+      if (!userProfile?.companyId) {
+        throw new Error("Company ID not found. Please complete onboarding.");
+      }
+      if (!data.clientId || typeof data.clientId !== 'string') {
+        throw new Error("Client is required");
+      }
+      if (!data.productList || !Array.isArray(data.productList) || data.productList.length === 0) {
+        throw new Error("At least one product/service is required");
+      }
+      const isEmployee = userProfile.role === 'EMPLOYEE';
+      const newInv = API.createInvoice(
+        { ...data, status: isEmployee ? 'Pending Approval' : (data.status || 'Draft') }, 
+        userProfile.companyId
+      );
+      await API.saveItem('invoices', newInv);
+      showToast(isEmployee ? 'Awaiting authority clearance' : `${newInv.type} registered`);
+      return newInv;
+    } catch (error: any) {
+      console.error("Error adding invoice:", error);
+      showToast(error?.message || 'Failed to create invoice', 'error');
+      throw error;
+    }
+  };
+
+  const updateInvoice = async (updated: Invoice) => {
+    try {
+      if (!updated || !updated.id) {
+        throw new Error("Invalid invoice data");
+      }
+      await API.saveItem('invoices', updated);
+      showToast(`Document node synced`);
+    } catch (error: any) {
+      console.error("Error updating invoice:", error);
+      showToast(error?.message || 'Failed to update invoice', 'error');
+      throw error;
+    }
+  };
+  
+  const deleteInvoice = async (id: string) => {
+    try {
+      if (!id || typeof id !== 'string') {
+        throw new Error("Invalid invoice ID");
+      }
+      await API.deleteItem('invoices', id);
+      showToast(`Document purged`, 'info');
+    } catch (error: any) {
+      console.error("Error deleting invoice:", error);
+      showToast(error?.message || 'Failed to delete invoice', 'error');
+      throw error;
+    }
+  };
   
   const addCatalogItem = async (data: Partial<CatalogItem>) => { 
-    const newItem = { 
-      ...data, 
-      id: `CI-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-      companyId: userProfile?.companyId 
-    } as CatalogItem; 
+    const newItem = { ...data, id: `CI-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, companyId: userProfile?.companyId } as CatalogItem; 
     await API.saveItem('catalog', newItem); 
     showToast(`Asset registered`); 
     return newItem; 
@@ -262,76 +416,53 @@ export const BusinessProvider: React.FC<{ children: ReactNode }> = ({ children }
   const updateCatalogItem = async (item: CatalogItem) => { await API.saveItem('catalog', item); showToast(`Asset synced`); };
   const deleteCatalogItem = async (id: string) => { await API.deleteItem('catalog', id); showToast(`Service node purged`, 'info'); };
   const deleteEvent = async (id: string) => { await API.deleteItem('events', id); showToast(`Schedule node cleared`, 'info'); };
-  const deleteVoucher = async (id: string) => { await API.deleteItem('vouchers', id); showToast(`Overhead node purged`, 'info'); };
-  const updateDashboardConfig = async (config: WidgetConfig[]) => { if(!userProfile) return; const newProfile = { ...userProfile, dashboardConfig: config }; await API.saveProfile(newProfile); };
   
+  const saveVoucher = async (v: Voucher) => { await API.saveItem('vouchers', v); };
+  const deleteVoucher = async (id: string) => { await API.deleteItem('vouchers', id); showToast(`Overhead node purged`, 'info'); };
+  
+  const updateDashboardConfig = async (config: WidgetConfig[]) => { if(!userProfile) return; const newProfile = { ...userProfile, dashboardConfig: config }; await API.saveProfile(newProfile); };
   const pushNotification = async (notif: Omit<Notification, 'id' | 'timestamp' | 'isRead' | 'companyId'>) => { 
-    const newNotif = API.generateNotification(notif.title, notif.description, notif.type, userProfile?.companyId || 'global'); 
+    const newNotif = API.generateNotification(notif.title, notif.description, notif.type, userProfile?.companyId || 'global', notif.link, notif.linkId); 
     await API.saveItem('notifications', newNotif); 
   };
-
   const markNotifRead = async (id: string) => { const notif = notifications.find(n => n.id === id); if (notif) await API.saveItem('notifications', { ...notif, isRead: true }); };
-  const addAuditLog = async (action: AuditEntry['action'], itemType: string, targetId: string) => { 
-    const log = API.generateAuditEntry(action, itemType, targetId, userProfile?.companyId || 'global'); 
-    await API.saveItem('audit_logs', log); 
-  };
-  
-  const saveChatThread = async (thread: ChatThread) => {
-    const t = { ...thread, companyId: userProfile?.companyId };
-    await API.saveItem('chat_threads', t);
-  };
-  
-  const deleteChatThread = async (id: string) => {
-    await API.deleteItem('chat_threads', id);
-    showToast('Conversation purged', 'info');
-  };
-
-  const provisionUser = async (data: Partial<UserProfile>) => {
-    const profile = await API.provisionUser({ ...data, companyId: userProfile?.companyId });
-    showToast(`Operative ${profile.fullName} added`);
-    return profile;
-  };
-
-  const saveCampaign = async (campaign: Campaign) => {
-    await API.saveItem('campaigns', { ...campaign, companyId: userProfile?.companyId });
-  };
+  const addAuditLog = async (action: AuditEntry['action'], itemType: string, targetId: string) => { const log = API.generateAuditEntry(action, itemType, targetId, userProfile?.companyId || 'global'); await API.saveItem('audit_logs', log); };
+  const saveChatThread = async (thread: ChatThread) => { const t = { ...thread, companyId: userProfile?.companyId }; await API.saveItem('chat_threads', t); };
+  const deleteChatThread = async (id: string) => { await API.deleteItem('chat_threads', id); showToast('Conversation purged', 'info'); };
+  const provisionUser = async (data: Partial<UserProfile>) => { const profile = await API.provisionUser({ ...data, companyId: userProfile?.companyId }); showToast(`Operative ${profile.fullName} added`); return profile; };
+  const saveCampaign = async (campaign: Campaign) => { await API.saveItem('campaigns', { ...campaign, companyId: userProfile?.companyId }); };
 
   const convertProposalToLPO = async (proposal: Proposal) => {
+    // Prevent creating multiple documents (LPO or Invoice) for the same accepted proposal
+    const existingDoc = invoicesRaw.find(i => i.linkedProposalId === proposal.id);
+    if (existingDoc) {
+      showToast(`Fiscal node already exists: ${existingDoc.id}`, 'info');
+      return;
+    }
+
     const total = proposal.budget;
     const isEmployee = userProfile?.role === 'EMPLOYEE';
-    const newLPO = API.createInvoice({ 
-      clientId: proposal.clientName, 
-      type: 'LPO', 
-      linkedProposalId: proposal.id, 
-      currency: proposal.currency, 
-      status: isEmployee ? 'Pending Approval' : 'Sent', 
-      productList: [{ productId: 'SERVICE', name: `PROJECT: ${proposal.title}`, quantity: 1, price: proposal.budget }], 
-      amountPaid: total, 
-      amountAED: proposal.currency === 'AED' ? total : total * 3.67, 
-      taxRate: 0, 
-      date: new Date().toISOString().split('T')[0], 
-      dueDate: proposal.timeline 
-    }, userProfile?.companyId || 'global');
+    const newLPO = API.createInvoice({ clientId: proposal.clientName, type: 'LPO', linkedProposalId: proposal.id, currency: proposal.currency, status: isEmployee ? 'Pending Approval' : 'Sent', productList: [{ productId: 'SERVICE', name: `PROJECT: ${proposal.title}`, quantity: 1, price: proposal.budget }], amountPaid: total, amountAED: proposal.currency === 'AED' ? total : total * 3.67, taxRate: 0, date: new Date().toISOString().split('T')[0], dueDate: proposal.timeline }, userProfile?.companyId || 'global');
     await API.saveItem('invoices', newLPO);
     await API.saveItem('proposals', { ...proposal, status: 'Accepted' });
     showToast(isEmployee ? 'LPO creation awaiting clearance' : `Purchase Order generated`);
   };
 
   const convertDocToInvoice = async (doc: Invoice) => {
+    // Robust check for existing synthesized invoices to prevent duplicates
+    // Check by sourceDocId (LPO -> Invoice link) or by linkedProposalId (Project -> Document link)
+    const alreadySynthesized = invoicesRaw.find(i => 
+      (i.sourceDocId === doc.id && i.type === 'Invoice') || 
+      (doc.linkedProposalId && i.linkedProposalId === doc.linkedProposalId && i.type === 'Invoice' && i.id !== doc.id)
+    );
+    
+    if (alreadySynthesized) {
+      showToast(`Invoice already synthesized: ${alreadySynthesized.id}`, 'info');
+      return;
+    }
+
     const isEmployee = userProfile?.role === 'EMPLOYEE';
-    const invoiceData: Partial<Invoice> = { 
-      type: 'Invoice', 
-      clientId: doc.clientId, 
-      clientEmail: doc.clientEmail, 
-      currency: doc.currency, 
-      productList: JSON.parse(JSON.stringify(doc.productList)), 
-      taxRate: doc.taxRate, 
-      discountRate: doc.discountRate, 
-      sourceDocId: doc.id, 
-      status: isEmployee ? 'Pending Approval' : 'Draft', 
-      date: new Date().toISOString().split('T')[0], 
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] 
-    };
+    const invoiceData: Partial<Invoice> = { type: 'Invoice', clientId: doc.clientId, clientEmail: doc.clientEmail, currency: doc.currency, productList: JSON.parse(JSON.stringify(doc.productList)), taxRate: doc.taxRate, discountRate: doc.discountRate, sourceDocId: doc.id, linkedProposalId: doc.linkedProposalId, status: isEmployee ? 'Pending Approval' : 'Draft', date: new Date().toISOString().split('T')[0], dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] };
     await addInvoice(invoiceData);
     await API.saveItem('invoices', { ...doc, status: 'Paid' });
     showToast(isEmployee ? 'Authority clearance requested' : `Document node transitioned`);
@@ -339,7 +470,7 @@ export const BusinessProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   return (
     <BusinessContext.Provider value={{
-      user, userProfile, loading, clients: clientsRaw, setClients, addClient, updateClient, deleteClient, catalog, addCatalogItem, updateCatalogItem, deleteCatalogItem, proposals: proposalsRaw, setProposals: setProposalsRaw, notifications, pushNotification, markNotifRead, setUserProfile, commitProject, updateProposal, deleteProposal, invoices: invoicesRaw, addInvoice, updateInvoice, deleteInvoice, convertProposalToLPO, convertDocToInvoice, language, setLanguage, t, chatThreads, saveChatThread, deleteChatThread, telemetry, events, setEvents, deleteEvent, auditLogs, addAuditLog, vouchers, setVouchers, deleteVoucher, updateDashboardConfig, toasts, showToast, removeToast, campaignAsset, setCampaignAsset, provisionUser, refreshUser, campaigns, saveCampaign
+      user, userProfile, loading, clients: clientsRaw, setClients, addClient, updateClient, deleteClient, catalog, addCatalogItem, updateCatalogItem, deleteCatalogItem, proposals: proposalsRaw, setProposals: setProposalsRaw, notifications, pushNotification, markNotifRead, setUserProfile, commitProject, updateProposal, deleteProposal, invoices: invoicesRaw, addInvoice, updateInvoice, deleteInvoice, convertProposalToLPO, convertDocToInvoice, language, setLanguage, t, chatThreads, saveChatThread, deleteChatThread, telemetry, events, setEvents, deleteEvent, auditLogs, addAuditLog, vouchers, setVouchers, saveVoucher, deleteVoucher, updateDashboardConfig, toasts, showToast, removeToast, campaignAsset, setCampaignAsset, provisionUser, refreshUser, campaigns, saveCampaign
     }}>
       {children}
     </BusinessContext.Provider>

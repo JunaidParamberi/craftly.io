@@ -1,15 +1,21 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  X, Loader2, CheckCircle2, Download, FileText, Edit2, Save, Trash2, Plus,
-  MessageSquare, Zap, Mail, Link as LinkIcon
+  X, Loader2, Download, FileText, Edit2, Save, Trash2, Plus,
+  MessageSquare, Zap, Mail, Palette
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Invoice, Currency, InvoiceItem } from '../types.ts';
+import { httpsCallable } from 'firebase/functions';
+import { Invoice, Currency, InvoiceItem, InvoiceTemplate } from '../types.ts';
 import { useBusiness } from '../context/BusinessContext.tsx';
-import { Badge, Button } from './ui/Primitives.tsx';
+import { Badge } from './ui/Primitives.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
+import TemplatePreviewSelector from './ui/TemplatePreviewSelector.tsx';
+import EmailModal from './ui/EmailModal.tsx';
+import WhatsAppModal from './ui/WhatsAppModal.tsx';
+import { renderInvoiceTemplate } from '../utils/pdfTemplates.tsx';
+import { functions } from '../services/firebase.ts';
 
 interface PdfSlideoutProps {
   invoice: Invoice | null;
@@ -21,12 +27,14 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [exportDone, setExportDone] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
   const [localInvoice, setLocalInvoice] = useState<Invoice | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [dispatchMode, setDispatchMode] = useState<'EMAIL' | 'WHATSAPP'>('EMAIL');
+  const [selectedTemplate, setSelectedTemplate] = useState<InvoiceTemplate | null>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
 
   const pdfRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,12 +43,16 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
     if (invoice) {
       setLocalInvoice(JSON.parse(JSON.stringify(invoice)));
       setHasChanges(false);
+      // Set template from invoice or user profile default or fallback
+      const template = invoice.templateType || userProfile?.branding?.defaultInvoiceTemplate || 'Swiss_Clean';
+      setSelectedTemplate(template);
     } else {
       setLocalInvoice(null);
       setHasChanges(false);
       setIsEditing(false);
+      setSelectedTemplate(null);
     }
-  }, [invoice]);
+  }, [invoice, userProfile]);
 
   const client = useMemo(() => clients.find(c => c.name === localInvoice?.clientId), [clients, localInvoice]);
   
@@ -74,8 +86,8 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [invoice, isEditing]);
 
-  const handleDownloadPdf = async (autoClose = false): Promise<boolean> => {
-    if (!pdfRef.current || !localInvoice) return false;
+  const handleDownloadPdf = async (_autoClose = false): Promise<string | null> => {
+    if (!pdfRef.current || !localInvoice) return null;
     setIsExporting(true);
     try {
       const canvas = await html2canvas(pdfRef.current, { 
@@ -87,45 +99,310 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       pdf.addImage(imgData, 'JPEG', 0, 0, 210, (canvas.height * 210) / canvas.width);
-      pdf.save(`${localInvoice.id}.pdf`);
-      if (!autoClose) {
-        setExportDone(true);
-        setTimeout(() => setExportDone(false), 3000);
+      
+      // Get PDF as base64 string for email attachment
+      const pdfBase64 = pdf.output('datauristring').split(',')[1];
+      
+      if (!_autoClose) {
+        pdf.save(`${localInvoice.id}.pdf`);
       }
-      return true;
+      
+      return pdfBase64;
     } catch (e) { 
       console.error(e); 
-      return false;
+      return null;
     } finally { 
       setIsExporting(false); 
     }
   };
 
+  const generatePublicToken = () => {
+    if (!localInvoice) return '';
+    // Generate a unique public token if not exists
+    if (!localInvoice.publicToken) {
+      const prefix = localInvoice.type === 'LPO' ? 'lpo' : 'inv';
+      const token = `${prefix}-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+      return token;
+    }
+    return localInvoice.publicToken;
+  };
+
+  const getPublicLink = (token?: string) => {
+    if (!localInvoice) return '';
+    const baseAppUrl = window.location.origin.includes('app.craftlyai.app') 
+      ? window.location.origin 
+      : (window.location.href.split('#')[0] || 'https://app.craftlyai.app');
+    // Use provided token, or get existing one from invoice, or generate one
+    const publicToken = token || localInvoice.publicToken || generatePublicToken();
+    return `${baseAppUrl}/#/public/invoice/${publicToken}`;
+  };
+
+  const getDefaultEmailData = () => {
+    if (!localInvoice) return { recipient: '', subject: '', body: '', deepLink: '' };
+    
+    // Use existing token if available, ensuring consistency with what will be saved
+    const publicToken = localInvoice.publicToken || generatePublicToken();
+    const publicLink = getPublicLink(publicToken);
+    const recipient = localInvoice.clientEmail || client?.email || '';
+    const subject = `${localInvoice.type} #${localInvoice.id} from ${userProfile?.companyName || 'CreaftlyAI'}`;
+    const body = `Hello ${localInvoice.clientId},\n\nPlease find your ${localInvoice.type} #${localInvoice.id} for the amount of ${localInvoice.currency} ${total.toLocaleString()}.\n\nPUBLIC VIEWING LINK (Anyone with this link can view and download the PDF):\n${publicLink}\n\nBest regards,\n${userProfile?.fullName}\n${userProfile?.companyName}`;
+    
+    return { recipient, subject, body, deepLink: publicLink };
+  };
+
+  const getDefaultWhatsAppData = () => {
+    if (!localInvoice) return { phoneNumber: '', message: '' };
+    
+    const publicLink = getPublicLink();
+    const phoneNumber = client?.phone || '';
+    const message = `Hello ${localInvoice.clientId},\n\nPlease find your ${localInvoice.type} #${localInvoice.id} for the amount of ${localInvoice.currency} ${total.toLocaleString()}.\n\nPUBLIC VIEWING LINK (Anyone with this link can view and download):\n${publicLink}\n\nBest regards,\n${userProfile?.fullName}\n${userProfile?.companyName}`;
+    
+    return { phoneNumber, message, deepLink: publicLink };
+  };
+
   const handleTransmit = async () => {
     if (!localInvoice) return;
+    
+    // Validate recipient
+    const recipientEmail = localInvoice.clientEmail || client?.email;
+    const recipientPhone = client?.phone;
+    
+    if (dispatchMode === 'EMAIL') {
+      if (!recipientEmail) {
+        showToast('No email address found for this client', 'error');
+        return;
+      }
+      // Show email modal instead of sending directly
+      setShowEmailModal(true);
+      return;
+    }
+    
+    if (dispatchMode === 'WHATSAPP') {
+      if (!recipientPhone) {
+        showToast('No phone number found for this client', 'error');
+        return;
+      }
+      // Show WhatsApp modal instead of sending directly
+      setShowWhatsAppModal(true);
+      return;
+    }
+  };
+
+  const handleSendEmail = async (emailData: { to: string; subject: string; body: string }) => {
+    if (!localInvoice) return;
+    
     setIsSending(true);
     try {
-      const baseAppUrl = window.location.href.split('#')[0];
-      const docPath = localInvoice.type === 'LPO' ? 'lpo' : 'invoices';
-      const deepLink = `${baseAppUrl}#/${docPath}/${localInvoice.id}`;
-      await navigator.clipboard.writeText(deepLink);
-      await handleDownloadPdf(true);
-
-      const subject = `${localInvoice.type} #${localInvoice.id} from ${userProfile?.companyName || 'Craftly'}`;
-      const body = `Hello ${localInvoice.clientId},\n\nPlease find your ${localInvoice.type} #${localInvoice.id} for the amount of ${localInvoice.currency} ${total.toLocaleString()}.\n\nDIGITAL VIEWING LINK:\n${deepLink}\n\n(Note: I have attached the PDF version of this document for your records. Please check the email attachments.)\n\nBest regards,\n${userProfile?.fullName}\n${userProfile?.companyName}`;
-
-      if (dispatchMode === 'WHATSAPP' && client?.phone) {
-        const url = `https://wa.me/${client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(body)}`;
-        window.open(url, '_blank');
-      } else {
-        const mailtoRecipient = localInvoice.clientEmail || client?.email || '';
-        const url = `mailto:${mailtoRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.location.href = url;
+      // Generate PDF and get base64
+      const pdfBase64 = await handleDownloadPdf(true);
+      if (!pdfBase64) {
+        throw new Error('Failed to generate PDF');
       }
 
-      updateInvoice({ ...localInvoice, status: 'Sent' });
-      pushNotification({ title: 'Terminal Dispatched', description: `Syncing ${localInvoice.id} via link & PDF.`, type: 'finance' });
-      showToast('PDF Downloaded & Link Synced', 'success');
+      // Extract token from the invoiceLink in email body if present, or generate/get one
+      // This ensures we use the same token that's in the email link the user sees
+      let publicToken = localInvoice.publicToken;
+      
+      // Try to extract token from the email body link if user didn't change it
+      const linkMatch = emailData.body.match(/\/public\/invoice\/([a-z0-9-]+)/);
+      if (linkMatch && linkMatch[1]) {
+        publicToken = linkMatch[1];
+      }
+      
+      // If still no token, generate one
+      if (!publicToken) {
+        const prefix = localInvoice.type === 'LPO' ? 'lpo' : 'inv';
+        publicToken = `${prefix}-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+      }
+
+      // Build public link using the token we'll save (ensure it matches what's in email)
+      const baseAppUrl = window.location.origin.includes('app.craftlyai.app') 
+        ? window.location.origin 
+        : 'https://app.craftlyai.app';
+      const publicLink = `${baseAppUrl}/#/public/invoice/${publicToken}`;
+
+      // CRITICAL: Ensure invoice has public token and is marked as public BEFORE sending email
+      // This makes the invoice accessible via public link
+      // Update invoice FIRST, wait for it to complete, then send email
+      const updatedInvoice = {
+        ...localInvoice,
+        publicToken,
+        isPublic: true,
+        status: 'Sent' as const
+      };
+      
+      // Wait for update to complete before proceeding
+      await updateInvoice(updatedInvoice);
+      // Update local state immediately
+      setLocalInvoice(updatedInvoice);
+      // Wait a bit more to ensure Firestore write is fully propagated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Send via Email API with PDF attachment
+      const sendInvoiceEmail = httpsCallable(functions, 'sendInvoiceEmail');
+      const result = await sendInvoiceEmail({
+        invoiceId: localInvoice.id,
+        recipientEmail: emailData.to,
+        pdfBase64,
+        pdfFileName: `${localInvoice.id}.pdf`,
+        invoiceLink: publicLink,
+        subject: emailData.subject,
+        body: emailData.body,
+        senderEmail: userProfile?.email || '',
+        senderName: userProfile?.fullName || userProfile?.companyName || '',
+        publicToken // Pass the token so function uses the same one
+      });
+      
+      const data = result.data as any;
+      if (data.success) {
+        showToast('Invoice email sent with PDF attachment', 'success');
+        
+        // Ensure invoice status is updated (already done above, but double-check)
+        if (localInvoice.status !== 'Sent') {
+          await updateInvoice({ ...localInvoice, status: 'Sent' });
+        }
+        
+        pushNotification({ 
+          title: 'Invoice Dispatched', 
+          description: `${localInvoice.id} sent to ${emailData.to} with PDF attachment.`, 
+          type: 'finance' 
+        });
+        
+        // Copy link to clipboard after successful send
+        try {
+          await navigator.clipboard.writeText(publicLink);
+        } catch (clipError) {
+          console.warn('Clipboard copy failed:', clipError);
+        }
+        
+        setShowEmailModal(false);
+      } else {
+        throw new Error(data.message || 'Email sending failed');
+      }
+    } catch (error: any) {
+      console.error('Email error:', error);
+      
+      // Check for specific error types and show appropriate message
+      let errorMessage = error.message || 'Failed to send email';
+      
+      if (error.code === 'functions/unavailable' || error.code === 'functions/not-found') {
+        errorMessage = 'Function not deployed. Please deploy Firebase Functions first.';
+      } else if (error.code === 'functions/permission-denied') {
+        errorMessage = 'Permission denied. Please check your authentication.';
+      } else if (error.code === 'functions/failed-precondition' || error.message?.includes('SMTP') || error.message?.includes('email service not configured')) {
+        errorMessage = 'Email service not configured. Please set SMTP credentials in Firebase Functions.';
+        // Also show toast for this important message
+        showToast('Email service not configured. Using fallback method.', 'warning');
+        
+        // Fallback to mailto: link
+        const url = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.body)}`;
+        window.location.href = url;
+        
+        // Also download PDF for manual attachment
+        if (pdfRef.current) {
+          try {
+            const pdf = new jsPDF();
+            const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            pdf.addImage(imgData, 'JPEG', 0, 0, 210, (canvas.height * 210) / canvas.width);
+            pdf.save(`${localInvoice.id}.pdf`);
+          } catch (pdfError) {
+            console.error('PDF generation failed:', pdfError);
+          }
+        }
+      } else if (error.message?.includes('CORS') || error.message?.includes('Access-Control-Allow-Origin')) {
+        errorMessage = 'CORS error: Function may not be deployed. Deploy functions first.';
+      }
+      
+      throw new Error(errorMessage); // Re-throw to show error in modal
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSendWhatsApp = async (whatsappData: { phoneNumber: string; message: string }) => {
+    if (!localInvoice) return;
+    
+    setIsSending(true);
+    try {
+      const publicToken = generatePublicToken();
+
+      // Ensure invoice has public token and is marked as public before sending
+      // This makes the invoice accessible via public link
+      if (!localInvoice.publicToken || !localInvoice.isPublic) {
+        const updatedInvoice = {
+          ...localInvoice,
+          publicToken,
+          isPublic: true,
+          status: 'Sent' as const
+        };
+        await updateInvoice(updatedInvoice);
+        // Update local state
+        setLocalInvoice(updatedInvoice);
+      }
+
+      // Send via WhatsApp API
+      const sendWhatsApp = httpsCallable(functions, 'sendWhatsAppMessage');
+      const result = await sendWhatsApp({
+        phoneNumber: whatsappData.phoneNumber,
+        message: whatsappData.message,
+        invoiceId: localInvoice.id
+      });
+      
+      const data = result.data as any;
+      
+      // WhatsApp function always returns a web link (Twilio is optional)
+      if (data.whatsappLink) {
+        // Open WhatsApp web
+        window.open(data.whatsappLink, '_blank');
+        showToast('WhatsApp link opened', 'success');
+        
+        // Ensure invoice status is updated (already done above, but double-check)
+        if (localInvoice.status !== 'Sent') {
+          await updateInvoice({ ...localInvoice, status: 'Sent' });
+        }
+        
+        pushNotification({ 
+          title: 'Invoice Dispatched', 
+          description: `${localInvoice.id} sent via WhatsApp with public link.`, 
+          type: 'finance' 
+        });
+        
+        setShowWhatsAppModal(false);
+      } else {
+        throw new Error('Failed to generate WhatsApp link');
+      }
+    } catch (error: any) {
+      console.error('WhatsApp error:', error);
+      
+      // Fallback to WhatsApp web on any error
+      const cleanPhone = whatsappData.phoneNumber.replace(/[^\d]/g, '');
+      const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappData.message)}`;
+      window.open(url, '_blank');
+      
+      // Ensure invoice has public token and is public (for the link in message)
+      const fallbackToken = generatePublicToken();
+      if (!localInvoice.publicToken || !localInvoice.isPublic) {
+        const updatedInvoice = {
+          ...localInvoice,
+          publicToken: localInvoice.publicToken || fallbackToken,
+          isPublic: true,
+          status: 'Sent' as const
+        };
+        await updateInvoice(updatedInvoice);
+        setLocalInvoice(updatedInvoice);
+      } else if (localInvoice.status !== 'Sent') {
+        await updateInvoice({ ...localInvoice, status: 'Sent' });
+      }
+      
+      pushNotification({ 
+        title: 'Invoice Dispatched', 
+        description: `${localInvoice.id} sent via WhatsApp with public link.`, 
+        type: 'finance' 
+      });
+      
+      showToast('WhatsApp web opened', 'info');
+      setShowWhatsAppModal(false);
     } finally {
       setIsSending(false);
     }
@@ -135,6 +412,7 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
     if (localInvoice) {
       updateInvoice({
         ...localInvoice,
+        templateType: selectedTemplate || localInvoice.templateType,
         amountPaid: total,
         amountAED: localInvoice.currency === 'AED' ? total : total * 3.67,
         taxRate: 0
@@ -173,54 +451,82 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
   if (!localInvoice) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] bg-black/90 flex flex-col animate-enter overflow-hidden">
-      <header className="h-16 sm:h-20 bg-[#111] border-b border-white/10 flex items-center justify-between px-4 sm:px-10 shrink-0">
-        <div className="flex items-center gap-4">
-          <button type="button" onClick={handleCloseAttempt} className="p-2 hover:bg-white/10 rounded-lg text-white transition-all cursor-pointer">
+    <div className="fixed inset-0 z-[10000] bg-[#0A0A0B]/95 flex flex-col overflow-hidden w-full" style={{ alignItems: 'stretch', justifyContent: 'flex-start' }}>
+      <header className="h-16 sm:h-20 bg-[#111] border-b border-white/10 flex items-center justify-between px-4 sm:px-6 lg:px-10 shrink-0 gap-4 w-full">
+        <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0 min-w-0">
+          <button type="button" onClick={handleCloseAttempt} className="p-2 hover:bg-white/10 rounded-lg text-white transition-all cursor-pointer flex-shrink-0">
             <X size={20} />
           </button>
-          <div className="flex items-center gap-3">
-            <FileText size={18} className="text-indigo-400" />
-            <h3 className="text-xs font-bold uppercase tracking-widest text-white">{localInvoice.id}</h3>
-            {isEditing && <Badge variant="warning" className="ml-2">Editing</Badge>}
-            {hasChanges && <span className="text-[10px] text-amber-500 font-bold ml-2">• Unsaved</span>}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <FileText size={18} className="text-indigo-400 flex-shrink-0" />
+            <h3 className="text-xs font-bold uppercase tracking-widest text-white truncate">{localInvoice.id}</h3>
+            {isEditing && <Badge variant="warning" className="ml-2 flex-shrink-0">Editing</Badge>}
+            {hasChanges && <span className="text-[10px] text-amber-500 font-bold ml-2 flex-shrink-0 whitespace-nowrap">• Unsaved</span>}
           </div>
         </div>
 
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-2 sm:gap-3 lg:gap-4 items-center flex-shrink-0 ml-auto">
           {isEditing ? (
             <>
-              <button type="button" onClick={handleSaveChanges} className="h-10 px-6 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white transition-all flex items-center gap-2 shadow-lg cursor-pointer">
-                <Save size={16} /> <span className="text-[10px] font-bold uppercase tracking-widest">Save</span>
+              <button type="button" onClick={handleSaveChanges} className="h-10 px-4 sm:px-6 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white transition-all flex items-center gap-2 shadow-lg cursor-pointer whitespace-nowrap">
+                <Save size={16} /> <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Save</span>
               </button>
-              <button type="button" onClick={() => { if(hasChanges) setShowDiscardConfirm(true); else setIsEditing(false); }} className="h-10 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer">
+              <button type="button" onClick={() => { if(hasChanges) setShowDiscardConfirm(true); else setIsEditing(false); }} className="h-10 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap">
                 <span className="text-[10px] font-bold uppercase tracking-widest">Cancel</span>
               </button>
             </>
           ) : (
             <>
-              <button type="button" onClick={() => handleDownloadPdf()} className="h-10 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer">
+              <button type="button" onClick={() => handleDownloadPdf()} className="h-10 px-4 sm:px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap">
                 {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} 
-                <span className="text-[10px] font-bold uppercase tracking-widest">Download PDF</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Download PDF</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest sm:hidden">PDF</span>
               </button>
-              <button type="button" onClick={() => setIsEditing(true)} className="h-10 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer">
+              <button type="button" onClick={() => setIsEditing(true)} className="h-10 px-4 sm:px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap">
                 <Edit2 size={16} /> <span className="text-[10px] font-bold uppercase tracking-widest">Edit</span>
               </button>
+              {!isEditing && selectedTemplate && (
+                <TemplatePreviewSelector
+                  value={selectedTemplate}
+                  onChange={(newTemplate) => {
+                    setSelectedTemplate(newTemplate);
+                    if (localInvoice) {
+                      setLocalInvoice({ ...localInvoice, templateType: newTemplate });
+                      setHasChanges(true);
+                    }
+                  }}
+                  type="invoice"
+                  compact={true}
+                  userProfile={userProfile}
+                  client={client || undefined}
+                  sampleInvoice={localInvoice ? {
+                    id: localInvoice.id,
+                    type: localInvoice.type,
+                    productList: localInvoice.productList,
+                    currency: localInvoice.currency,
+                    date: localInvoice.date,
+                    dueDate: localInvoice.dueDate,
+                    clientId: localInvoice.clientId,
+                    clientEmail: localInvoice.clientEmail
+                  } : undefined}
+                />
+              )}
             </>
           )}
 
           {!isEditing && (
-            <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-xl border border-white/5">
-              <button onClick={() => setDispatchMode('EMAIL')} className={`p-2 rounded-lg transition-all ${dispatchMode === 'EMAIL' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`} title="Email Dispatch"><Mail size={16}/></button>
-              <button onClick={() => setDispatchMode('WHATSAPP')} className={`p-2 rounded-lg transition-all ${dispatchMode === 'WHATSAPP' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`} title="WhatsApp Dispatch"><MessageSquare size={16}/></button>
-              <div className="w-px h-6 bg-white/10 mx-1" />
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-900 p-1 rounded-xl border border-white/5 flex-shrink-0">
+              <button onClick={() => setDispatchMode('EMAIL')} className={`p-2 rounded-lg transition-all flex-shrink-0 ${dispatchMode === 'EMAIL' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`} title="Email Dispatch"><Mail size={16}/></button>
+              <button onClick={() => setDispatchMode('WHATSAPP')} className={`p-2 rounded-lg transition-all flex-shrink-0 ${dispatchMode === 'WHATSAPP' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`} title="WhatsApp Dispatch"><MessageSquare size={16}/></button>
+              <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
               <button 
                 onClick={handleTransmit} 
                 disabled={isSending}
-                className={`h-10 px-6 rounded-lg font-black uppercase text-[9px] tracking-widest transition-all flex items-center gap-3 shadow-2xl ${isSending ? 'bg-indigo-500 animate-pulse' : dispatchMode === 'WHATSAPP' ? 'bg-emerald-600' : 'bg-indigo-600'} text-white`}
+                className={`h-10 px-4 sm:px-6 rounded-lg font-black uppercase text-[9px] tracking-widest transition-all flex items-center gap-2 sm:gap-3 shadow-2xl flex-shrink-0 whitespace-nowrap ${isSending ? 'bg-indigo-500 animate-pulse' : dispatchMode === 'WHATSAPP' ? 'bg-emerald-600' : 'bg-indigo-600'} text-white`}
               >
                 {isSending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                {isSending ? 'Transmitting...' : 'Dispatch & Link'}
+                <span className="hidden sm:inline">{isSending ? 'Transmitting...' : 'Dispatch & Link'}</span>
+                <span className="sm:hidden">{isSending ? 'Sending...' : 'Dispatch'}</span>
               </button>
             </div>
           )}
@@ -229,129 +535,53 @@ const PdfSlideout: React.FC<PdfSlideoutProps> = ({ invoice, onClose }) => {
 
       <div ref={containerRef} className="flex-1 overflow-y-auto bg-slate-200/50 flex flex-col items-center py-10 relative">
         <div style={{ width: `${794 * previewScale}px`, height: `${1123 * previewScale}px` }} className={`relative transition-all duration-300 ${isEditing ? 'ring-8 ring-indigo-500/20' : 'shadow-2xl'}`}>
-          <div ref={pdfRef} style={{ width: '794px', minHeight: '1123px', transform: `scale(${previewScale})`, transformOrigin: 'top left' }} className="bg-white flex flex-col font-sans text-slate-800 absolute top-0 left-0 p-[80px]">
-            
-            {/* BRANDING HEADER - CONSOLIDATED LOGIC (NO LOGO = SHOW DETAILS, ELSE LOGO ONLY) */}
-            <div className="flex justify-between items-start mb-16 border-b-4 border-slate-900 pb-12">
-              <div className="w-2/3">
-                {userProfile?.branding?.logoUrl ? (
-                  <div className="h-24 flex items-center justify-start overflow-hidden">
-                    <img src={userProfile.branding.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain block" crossOrigin="anonymous" />
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <h2 className="text-3xl font-black uppercase tracking-tighter text-slate-900 leading-none mb-4">{userProfile?.companyName}</h2>
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight max-w-[320px]">{userProfile?.branding?.address}</p>
-                      {userProfile?.branding?.trn && (
-                        <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">TRN: {userProfile.branding.trn}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">Serial Node</div>
-                <div className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
-                  {isEditing ? (
-                    <input className="bg-slate-50 border border-slate-200 p-1 text-right w-32 focus:outline-indigo-500" value={localInvoice.id} onChange={e => { setLocalInvoice({...localInvoice, id: e.target.value.toUpperCase()}); setHasChanges(true); }} />
-                  ) : `#${localInvoice.id}`}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-end mb-16">
-              <div>
-                <h1 className="text-7xl font-black uppercase tracking-tighter text-slate-900 leading-none">{localInvoice.type}</h1>
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">Timestamp</div>
-                {isEditing ? (
-                  <input type="date" className="bg-slate-50 border border-slate-200 p-1 text-lg font-bold text-slate-900" value={localInvoice.date} onChange={e => { setLocalInvoice({...localInvoice, date: e.target.value}); setHasChanges(true); }} />
-                ) : (
-                  <span className="text-lg font-black text-slate-900 uppercase">{new Date(localInvoice.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-20 mb-20">
-              <div>
-                <h4 className="font-black text-slate-900 mb-6 uppercase text-[10px] tracking-[0.3em] border-b border-slate-100 pb-2">Target Registry (To)</h4>
-                <div className="space-y-1">
-                  <p className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">{client?.name || localInvoice.clientId}</p>
-                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest whitespace-pre-wrap leading-relaxed max-w-sm">{client?.address || 'No registered address.'}</p>
-                  <p className="text-[11px] text-slate-400 font-bold lowercase tracking-wider mt-2">{client?.email || localInvoice.clientEmail}</p>
-                </div>
-              </div>
-              <div>
-                <h4 className="font-black text-slate-900 mb-6 uppercase text-[10px] tracking-[0.3em] border-b border-slate-100 pb-2">Origin Registry (From)</h4>
-                <div className="space-y-1">
-                  <p className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">{userProfile?.fullName}</p>
-                  <p className="text-[11px] text-indigo-600 font-black uppercase tracking-widest mb-1">{userProfile?.title || 'OPERATIVE'}</p>
-                  <p className="text-[11px] text-slate-400 font-bold lowercase tracking-wider mt-2">{userProfile?.email}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1">
-              <div className="w-full border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-end">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] w-1/2">Service Allocation</span>
-                <div className="flex w-1/2 justify-end gap-10">
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] w-16 text-center">Volume</span>
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] w-24 text-right">Unit Value</span>
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] w-24 text-right">Node Worth</span>
-                   {isEditing && <span className="w-8"></span>}
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                {(localInvoice.productList || []).map((item, i) => (
-                  <div key={i} className="flex justify-between items-center py-4 border-b border-slate-50 group">
-                    <div className="flex-1 pr-10">
-                      {isEditing ? (
-                        <input className="w-full bg-slate-50 border border-slate-100 p-2 text-lg font-black text-slate-900 uppercase tracking-tight focus:bg-white" value={item.name} onChange={e => updateLocalItem(i, { name: e.target.value.toUpperCase() })} />
-                      ) : (
-                        <p className="text-lg font-black text-slate-900 uppercase tracking-tight leading-tight">{item.name}</p>
-                      )}
-                    </div>
-                    <div className="flex justify-end gap-10 items-center">
-                       <div className="w-16 text-center">{isEditing ? <input type="number" className="w-full bg-slate-50 border border-slate-100 p-2 text-center text-sm font-bold text-slate-900" value={item.quantity} onChange={e => updateLocalItem(i, { quantity: parseInt(e.target.value) || 1 })} /> : <p className="text-sm font-black text-slate-900 tabular-nums">{item.quantity}</p>}</div>
-                       <div className="w-24 text-right">{isEditing ? <input type="number" className="w-full bg-slate-50 border border-slate-100 p-2 text-right text-sm font-bold text-slate-900" value={item.price} onChange={e => updateLocalItem(i, { price: parseFloat(e.target.value) || 0 })} /> : <p className="text-sm font-black text-slate-900 tabular-nums">{item.price.toLocaleString()}</p>}</div>
-                       <div className="w-24 text-right"><p className="text-lg font-black text-slate-900 tabular-nums">{(item.price * item.quantity).toLocaleString()}</p></div>
-                       {isEditing && <button type="button" onClick={() => removeLocalItem(i)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"><Trash2 size={16} /></button>}
-                    </div>
-                  </div>
-                ))}
-                {isEditing && <button type="button" onClick={addLocalItem} className="w-full py-4 mt-4 border-2 border-dashed border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:border-indigo-500/30 hover:text-indigo-500 transition-all flex items-center justify-center gap-2 cursor-pointer"><Plus size={14} /> Add Line Item</button>}
-              </div>
-
-              <div className="mt-20 border-t-2 border-slate-100 pt-10">
-                <div className="flex justify-between items-center pt-8 border-t-4 border-slate-900">
-                   <span className="text-xl font-black uppercase tracking-[0.3em]">Gross Worth</span>
-                   <span className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{currencySymbols[localInvoice.currency]}{total.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-20 pt-10 border-t border-slate-100 grid grid-cols-2 gap-10">
-               <div>
-                  <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em] mb-4">Payment Node Parameters</h5>
-                  <div className="space-y-1 text-[11px] text-slate-500 font-bold uppercase tracking-widest">
-                     <p>Settlement to: {userProfile?.branding?.bankDetails || 'Manual wire.'}</p>
-                     <p className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-[0.4em]">Target Date: {new Date(localInvoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-                  </div>
-               </div>
-               <div className="text-right flex flex-col items-end justify-end">
-                  {userProfile?.branding?.signatureUrl ? <img src={userProfile.branding.signatureUrl} alt="Signature" className="h-12 object-contain grayscale opacity-80 mb-4" /> : <div className="h-12 w-48 border-b-2 border-slate-900 mb-4"></div>}
-                  <p className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em] leading-none">{userProfile?.fullName}</p>
-                  <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mt-1.5">{userProfile?.title || 'OPERATIVE'}</p>
-               </div>
-            </div>
+          <div ref={pdfRef} style={{ width: '794px', minHeight: '1123px', transform: `scale(${previewScale})`, transformOrigin: 'top left' }} className="absolute top-0 left-0">
+            {selectedTemplate && localInvoice ? renderInvoiceTemplate(selectedTemplate, {
+              invoice: localInvoice,
+              userProfile,
+              client,
+              total,
+              isEditing,
+              onItemUpdate: isEditing ? updateLocalItem : undefined
+            }) : <div className="w-full h-full bg-white flex items-center justify-center"><Loader2 size={40} className="animate-spin text-indigo-500" /></div>}
           </div>
         </div>
       </div>
 
       <ConfirmationModal isOpen={showDiscardConfirm} title="Discard Node Updates?" message="Registry sync failed because changes were not committed. Do you wish to synchronize before closing?" confirmLabel="Save and Sync" onConfirm={() => { handleSaveChanges(); onClose(); setShowDiscardConfirm(false); }} onCancel={() => { setShowDiscardConfirm(false); onClose(); }} variant="primary" />
+      
+      {/* Email Modal */}
+      {localInvoice && (() => {
+        const { recipient, subject, body, deepLink } = getDefaultEmailData();
+        return (
+          <EmailModal
+            isOpen={showEmailModal}
+            onClose={() => setShowEmailModal(false)}
+            onSend={handleSendEmail}
+            recipient={recipient}
+            subject={subject}
+            body={body}
+            invoiceId={localInvoice.id}
+            invoiceLink={deepLink}
+          />
+        );
+      })()}
+      
+      {/* WhatsApp Modal */}
+      {localInvoice && (() => {
+        const { phoneNumber, message, deepLink } = getDefaultWhatsAppData();
+        return (
+          <WhatsAppModal
+            isOpen={showWhatsAppModal}
+            onClose={() => setShowWhatsAppModal(false)}
+            onSend={handleSendWhatsApp}
+            phoneNumber={phoneNumber}
+            message={message}
+            invoiceId={localInvoice.id}
+            invoiceLink={deepLink}
+          />
+        );
+      })()}
     </div>,
     document.body
   );

@@ -8,7 +8,7 @@ export const translations: Record<string, any> = {
     services: "Services",
     expenses: "Expenses",
     calendar: "Calendar",
-    ai_assistant: "Craftly AI",
+    ai_assistant: "CreaftlyAI",
     team_hub: "Team Hub",
     provisioning: "Provisioning",
     campaign_engine: "Campaign Engine",

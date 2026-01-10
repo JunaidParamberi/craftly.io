@@ -3,8 +3,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Plus, Loader2, Trash2, X, Eye, Edit2, Sparkles, Building2, ChevronDown, UserPlus,
-  Calculator, Search, FileSignature, Clock, Target, ListChecks, Briefcase, Send
+  Plus, Trash2, X, Eye, Edit2, Sparkles, Building2, ChevronDown, UserPlus,
+  Search, Briefcase, Send
 } from 'lucide-react';
 import { Proposal } from '../types';
 import { useBusiness } from '../context/BusinessContext.tsx';

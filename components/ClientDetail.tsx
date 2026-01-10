@@ -2,10 +2,9 @@
 import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, Building2, Calendar, Target, 
-  Cpu, Layout, Layers, CreditCard, Sparkles, Clock, ArrowRight,
-  // Fix: Added missing Briefcase import
-  FileText, Send, User, Mail, Phone, Globe, MapPin, BadgePercent,
+  ChevronLeft, Target, 
+  Cpu, CreditCard, 
+  User, Mail, Phone, Globe, MapPin, BadgePercent,
   History, TrendingUp, Zap, Briefcase
 } from 'lucide-react';
 import { useBusiness } from '../context/BusinessContext.tsx';
@@ -18,14 +17,18 @@ const ClientDetail: React.FC = () => {
 
   const client = useMemo(() => clients.find(c => c.id === id), [id, clients]);
   const clientProposals = useMemo(() => proposals.filter(p => p.clientName === client?.name || p.clientId === id), [client, proposals, id]);
-  const clientInvoices = useMemo(() => invoices.filter(i => i.clientId === client?.name), [client, invoices]);
+  
+  // Logic Fix: Only count 'Invoice' type for financial volume to avoid doubling with LPOs
+  const clientInvoices = useMemo(() => 
+    invoices.filter(i => i.clientId === client?.name && i.type === 'Invoice'), 
+  [client, invoices]);
 
   if (!client) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center text-center">
         <Cpu size={64} className="text-rose-500 mb-6 opacity-20" />
         <h3 className="text-2xl font-black uppercase tracking-tighter">Node Not Found</h3>
-        <p className="text-slate-500 mt-4 uppercase text-[10px] tracking-widest">The client registry does not contain this identifier.</p>
+        <p className="text-[var(--text-secondary)] mt-4 uppercase text-[10px] tracking-widest">The client registry does not contain this identifier.</p>
         <Button onClick={() => navigate('/clients')} className="mt-10" icon={ChevronLeft}>Return to Registry</Button>
       </div>
     );
@@ -38,17 +41,17 @@ const ClientDetail: React.FC = () => {
     <div className="space-y-10 animate-enter pb-24">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="space-y-4">
-          <button onClick={() => navigate('/clients')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--accent)] transition-colors">
+          <button onClick={() => navigate('/clients')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
             <ChevronLeft size={14} /> Registry Directory
           </button>
           <div className="flex items-center gap-6">
-            <div className="w-20 h-20 rounded-[1.5rem] bg-indigo-600 text-white flex items-center justify-center font-black text-3xl shadow-2xl uppercase border border-white/10">{client.name.charAt(0)}</div>
+            <div className="w-20 h-20 rounded-[1.5rem] bg-[var(--accent)] text-white flex items-center justify-center font-black text-3xl shadow-2xl uppercase border border-white/10">{client.name.charAt(0)}</div>
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <Badge variant={client.status === 'Active' ? 'success' : 'warning'}>{client.status.toUpperCase()}</Badge>
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Partner Node: {client.id}</span>
+                <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Partner Node: {client.id}</span>
               </div>
-              <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-none text-white">{client.name}</h2>
+              <h2 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-none text-[var(--text-primary)]">{client.name}</h2>
             </div>
           </div>
         </div>
@@ -61,30 +64,30 @@ const ClientDetail: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="p-8 bg-slate-900/40 border-white/5">
-                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3">Total Volume</p>
-                 <p className="text-3xl font-black text-white tabular-nums tracking-tighter">AED {totalBilled.toLocaleString()}</p>
+              <Card className="p-8 bg-[var(--bg-card-muted)] border-[var(--border-ui)]">
+                 <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] mb-3">Total Volume</p>
+                 <p className="text-3xl font-black text-[var(--text-primary)] tabular-nums tracking-tighter">AED {totalBilled.toLocaleString()}</p>
                  <div className="flex items-center gap-2 mt-4">
                     <TrendingUp size={12} className="text-emerald-500" />
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Lifetime Pulse</span>
+                    <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Lifetime Pulse</span>
                  </div>
               </Card>
-              <Card className="p-8 bg-slate-900/40 border-white/5">
-                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3">Settled Nodes</p>
+              <Card className="p-8 bg-[var(--bg-card-muted)] border-[var(--border-ui)]">
+                 <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] mb-3">Settled Nodes</p>
                  <p className="text-3xl font-black text-emerald-500 tabular-nums tracking-tighter">AED {paidBilled.toLocaleString()}</p>
-                 <div className="w-full h-1 bg-white/5 rounded-full mt-4 overflow-hidden">
+                 <div className="w-full h-1 bg-[var(--border-ui)] rounded-full mt-4 overflow-hidden">
                     <div className="h-full bg-emerald-500" style={{ width: `${totalBilled > 0 ? (paidBilled/totalBilled)*100 : 0}%` }} />
                  </div>
               </Card>
-              <Card className="p-8 bg-indigo-600/10 border-indigo-500/20">
-                 <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-3">Active Missions</p>
-                 <p className="text-3xl font-black text-white tabular-nums tracking-tighter">{clientProposals.length}</p>
-                 <p className="text-[9px] font-bold text-slate-500 uppercase mt-4 tracking-widest">Current Commitments</p>
+              <Card className="p-8 bg-[var(--accent)]/10 border-[var(--accent)]/20">
+                 <p className="text-[9px] font-black text-[var(--accent)] uppercase tracking-[0.3em] mb-3">Active Missions</p>
+                 <p className="text-3xl font-black text-[var(--text-primary)] tabular-nums tracking-tighter">{clientProposals.length}</p>
+                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase mt-4 tracking-widest">Current Commitments</p>
               </Card>
            </div>
 
            <Card className="p-10 space-y-10">
-              <div className="flex items-center gap-4 text-indigo-500 border-b border-white/5 pb-6">
+              <div className="flex items-center gap-4 text-[var(--accent)] border-b border-[var(--border-ui)] pb-6">
                  <User size={24} />
                  <h4 className="text-xs font-black uppercase tracking-[0.4em]">Node Identity & Logistics</h4>
               </div>
@@ -92,48 +95,48 @@ const ClientDetail: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                  <div className="space-y-8">
                     <div className="flex items-start gap-4">
-                       <div className="p-3 bg-slate-900 rounded-xl text-slate-500 border border-white/5"><User size={18}/></div>
+                       <div className="p-3 bg-[var(--bg-card-muted)] rounded-xl text-[var(--text-secondary)] border border-[var(--border-ui)]"><User size={18}/></div>
                        <div>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Operative Lead</p>
-                          <p className="text-base font-black text-white uppercase">{client.contactPerson}</p>
+                          <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Operative Lead</p>
+                          <p className="text-base font-black text-[var(--text-primary)] uppercase">{client.contactPerson}</p>
                        </div>
                     </div>
                     <div className="flex items-start gap-4">
-                       <div className="p-3 bg-slate-900 rounded-xl text-slate-500 border border-white/5"><Mail size={18}/></div>
+                       <div className="p-3 bg-[var(--bg-card-muted)] rounded-xl text-[var(--text-secondary)] border border-[var(--border-ui)]"><Mail size={18}/></div>
                        <div>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Registry Email</p>
-                          <p className="text-base font-bold text-indigo-400 lowercase">{client.email}</p>
+                          <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Registry Email</p>
+                          <p className="text-base font-bold text-[var(--accent)] lowercase">{client.email}</p>
                        </div>
                     </div>
                     <div className="flex items-start gap-4">
-                       <div className="p-3 bg-slate-900 rounded-xl text-slate-500 border border-white/5"><Phone size={18}/></div>
+                       <div className="p-3 bg-[var(--bg-card-muted)] rounded-xl text-[var(--text-secondary)] border border-[var(--border-ui)]"><Phone size={18}/></div>
                        <div>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Terminal Phone</p>
-                          <p className="text-base font-black text-white tabular-nums">{client.phone}</p>
+                          <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Terminal Phone</p>
+                          <p className="text-base font-black text-[var(--text-primary)] tabular-nums">{client.phone}</p>
                        </div>
                     </div>
                  </div>
                  
                  <div className="space-y-8">
                     <div className="flex items-start gap-4">
-                       <div className="p-3 bg-slate-900 rounded-xl text-slate-500 border border-white/5"><Globe size={18}/></div>
+                       <div className="p-3 bg-[var(--bg-card-muted)] rounded-xl text-[var(--text-secondary)] border border-[var(--border-ui)]"><Globe size={18}/></div>
                        <div>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Regional Matrix</p>
-                          <p className="text-base font-black text-white uppercase">{client.country}</p>
+                          <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Regional Matrix</p>
+                          <p className="text-base font-black text-[var(--text-primary)] uppercase">{client.country}</p>
                        </div>
                     </div>
                     <div className="flex items-start gap-4">
-                       <div className="p-3 bg-slate-900 rounded-xl text-slate-500 border border-white/5"><BadgePercent size={18}/></div>
+                       <div className="p-3 bg-[var(--bg-card-muted)] rounded-xl text-[var(--text-secondary)] border border-[var(--border-ui)]"><BadgePercent size={18}/></div>
                        <div>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">TRN / Tax Identifier</p>
-                          <p className="text-base font-black text-white uppercase">{client.taxId || 'UNREGISTERED'}</p>
+                          <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">TRN / Tax Identifier</p>
+                          <p className="text-base font-black text-[var(--text-primary)] uppercase">{client.taxId || 'UNREGISTERED'}</p>
                        </div>
                     </div>
                     <div className="flex items-start gap-4">
-                       <div className="p-3 bg-slate-900 rounded-xl text-slate-500 border border-white/5"><MapPin size={18}/></div>
+                       <div className="p-3 bg-[var(--bg-card-muted)] rounded-xl text-[var(--text-secondary)] border border-[var(--border-ui)]"><MapPin size={18}/></div>
                        <div>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Coordinate address</p>
-                          <p className="text-sm font-medium text-slate-400 leading-relaxed uppercase">{client.address || 'NO FIXED ADDRESS'}</p>
+                          <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Coordinate address</p>
+                          <p className="text-sm font-medium text-[var(--text-secondary)] leading-relaxed uppercase">{client.address || 'NO FIXED ADDRESS'}</p>
                        </div>
                     </div>
                  </div>
@@ -144,18 +147,18 @@ const ClientDetail: React.FC = () => {
               <Heading sub="Historical Node Logs">Commitment Thread</Heading>
               <div className="grid grid-cols-1 gap-4">
                  {clientProposals.length > 0 ? clientProposals.map(p => (
-                   <Card key={p.id} className="p-6 bg-slate-900/30 border-white/5 hover:border-indigo-500/30 flex items-center justify-between cursor-pointer group" onClick={() => navigate(`/projects/${p.id}`)}>
+                   <Card key={p.id} className="p-6 bg-[var(--bg-card-muted)] border-[var(--border-ui)] hover:border-[var(--accent)]/30 flex items-center justify-between cursor-pointer group" onClick={() => navigate(`/projects/${p.id}`)}>
                       <div className="flex items-center gap-5">
-                         <div className="w-12 h-12 bg-slate-900 rounded-xl border border-white/5 flex items-center justify-center text-indigo-500 group-hover:bg-indigo-600 group-hover:text-white transition-all"><Briefcase size={20}/></div>
+                         <div className="w-12 h-12 bg-[var(--bg-card-muted)] rounded-xl border border-[var(--border-ui)] flex items-center justify-center text-[var(--accent)] group-hover:bg-[var(--accent)] group-hover:text-white transition-all"><Briefcase size={20}/></div>
                          <div>
-                            <h5 className="text-sm font-black text-white uppercase tracking-tight">{p.title}</h5>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Start: {p.startDate} • Worth: AED {p.budget.toLocaleString()}</p>
+                            <h5 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">{p.title}</h5>
+                            <p className="text-[9px] text-[var(--text-secondary)] font-bold uppercase mt-1">Start: {p.startDate} • Worth: AED {p.budget.toLocaleString()}</p>
                          </div>
                       </div>
                       <Badge variant={p.status === 'Accepted' ? 'success' : 'info'}>{p.status.toUpperCase()}</Badge>
                    </Card>
                  )) : (
-                   <div className="py-20 text-center opacity-10 bg-slate-900 rounded-[2.5rem] border border-dashed border-white/10">
+                   <div className="py-20 text-center opacity-10 bg-[var(--bg-card-muted)] rounded-[2.5rem] border border-dashed border-[var(--border-ui)]">
                       <Target size={48} className="mx-auto mb-4" />
                       <p className="text-[10px] font-black uppercase tracking-[0.4em]">No Missions Found</p>
                    </div>
@@ -184,21 +187,21 @@ const ClientDetail: React.FC = () => {
            </Card>
 
            <Card className="p-10 space-y-8">
-              <h5 className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-500 flex items-center gap-3">
+              <h5 className="text-[10px] font-black uppercase tracking-[0.5em] text-[var(--text-secondary)] flex items-center gap-3">
                 <History size={16} /> Data Telemetry
               </h5>
               <div className="space-y-6">
-                 <div className="flex items-center justify-between p-4 bg-slate-900 rounded-2xl border border-white/5">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registry ID</span>
-                    <span className="text-xs font-black text-white uppercase">{client.id}</span>
+                 <div className="flex items-center justify-between p-4 bg-[var(--bg-card-muted)] rounded-2xl border border-[var(--border-ui)]">
+                    <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Registry ID</span>
+                    <span className="text-xs font-black text-[var(--text-primary)] uppercase">{client.id}</span>
                  </div>
-                 <div className="flex items-center justify-between p-4 bg-slate-900 rounded-2xl border border-white/5">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pref Currency</span>
-                    <span className="text-xs font-black text-indigo-400 uppercase">{client.currency}</span>
+                 <div className="flex items-center justify-between p-4 bg-[var(--bg-card-muted)] rounded-2xl border border-[var(--border-ui)]">
+                    <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Pref Currency</span>
+                    <span className="text-xs font-black text-[var(--accent)] uppercase">{client.currency}</span>
                  </div>
-                 <div className="flex items-center justify-between p-4 bg-slate-900 rounded-2xl border border-white/5">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Onboarded</span>
-                    <span className="text-xs font-black text-slate-200 uppercase tabular-nums">{new Date(client.createdAt || '').toLocaleDateString('en-GB')}</span>
+                 <div className="flex items-center justify-between p-4 bg-[var(--bg-card-muted)] rounded-2xl border border-[var(--border-ui)]">
+                    <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Onboarded</span>
+                    <span className="text-xs font-black text-[var(--text-primary)] uppercase tabular-nums">{new Date(client.createdAt || '').toLocaleDateString('en-GB')}</span>
                  </div>
               </div>
            </Card>

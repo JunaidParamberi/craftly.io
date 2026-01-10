@@ -1,16 +1,16 @@
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Inbox, Send, Trash2, Archive, 
   Search, Plus, Reply, 
-  Paperclip, ChevronLeft, X, Sparkles,
-  Mail, Loader2, Minimize2, Maximize2, Link as LinkIcon,
-  Zap
+  ChevronLeft, X,
+  Mail, Loader2, Minimize2, Maximize2,
+  Users, CheckSquare, Square
 } from 'lucide-react';
 import { Email } from '../types';
 import { useBusiness } from '../context/BusinessContext.tsx';
-import { Button, Badge, Label } from './ui/Primitives.tsx';
-import { GoogleGenAI } from '@google/genai';
+import { Button, Badge } from './ui/Primitives.tsx';
+import { httpsCallable } from 'firebase/functions';
 import { 
   collection, 
   addDoc, 
@@ -20,10 +20,9 @@ import {
   query,
   where,
   or,
-  updateDoc,
-  orderBy
+  updateDoc
 } from 'firebase/firestore';
-import { db, auth } from '../services/firebase.ts';
+import { db, auth, functions } from '../services/firebase.ts';
 
 // --- LIVE DATA HOOK: useEmails ---
 const useEmails = () => {
@@ -45,8 +44,8 @@ const useEmails = () => {
 
     // Explicitly cast snapshot as any to avoid DocumentSnapshot typing error
     const unsubscribe = onSnapshot(q, (snapshot: any) => {
-      const emailList = snapshot.docs.map((doc: { data: () => any; id: any; }) => {
-        const data = doc.data();
+      const emailList = snapshot.docs.map((d: { data: () => any; id: any; }) => {
+        const data = d.data();
         // Determine folder based on user perspective if not explicitly set
         let folder = data.folder || 'inbox';
         if (data.metadata?.senderId === auth.currentUser?.uid && folder !== 'trash' && folder !== 'archive') {
@@ -54,9 +53,9 @@ const useEmails = () => {
         }
 
         return {
-          id: doc.id,
+          id: d.id,
           fromName: data.fromName || (data.metadata?.senderName || 'Unknown'),
-          fromEmail: data.fromEmail || 'system@craftly.io',
+          fromEmail: data.fromEmail || 'no-reply@craftlyai.app',
           subject: data.message?.subject || 'No Subject',
           body: data.message?.text || '',
           snippet: (data.message?.text || '').substring(0, 80) + '...',
@@ -84,7 +83,7 @@ type FolderType = Email['folder'];
 type ViewMode = 'LIST' | 'DETAILS';
 
 const EmailApp: React.FC = () => {
-  const { userProfile, showToast } = useBusiness();
+  const { userProfile, showToast, clients } = useBusiness();
   const { emails, loading: emailsLoading } = useEmails();
   
   const [currentFolder, setCurrentFolder] = useState<FolderType>('inbox');
@@ -94,8 +93,11 @@ const EmailApp: React.FC = () => {
   const [view, setView] = useState<ViewMode>('LIST');
   const [isComposeMinimized, setIsComposeMinimized] = useState(false);
   const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
-  const [isAiDrafting, setIsAiDrafting] = useState(false);
   const [isTransmitting, setIsTransmitting] = useState(false);
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [bulkRecipients, setBulkRecipients] = useState<string[]>([]);
+  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
+  const [isSendingBulk, setIsSendingBulk] = useState(false);
 
   const selectedEmail = useMemo(() => 
     emails.find(m => m.id === selectedEmailId), 
@@ -129,17 +131,122 @@ const EmailApp: React.FC = () => {
   };
 
   const handleSend = async () => {
-    if (!composeData.to || !composeData.subject || !auth.currentUser) {
-      showToast('Missing required fields', 'error');
+    if (!composeData.subject || !auth.currentUser) {
+      showToast('Subject is required', 'error');
+      return;
+    }
+
+    if (isBulkMode) {
+      // Bulk email sending
+      if (bulkRecipients.length === 0 && selectedClients.size === 0) {
+        showToast('Please select at least one recipient', 'error');
+        return;
+      }
+
+      setIsSendingBulk(true);
+      try {
+        // Get email addresses from selected clients or use bulk recipients
+        const emailList: string[] = [];
+        
+        if (selectedClients.size > 0) {
+          clients.forEach(client => {
+            if (selectedClients.has(client.id) && client.email) {
+              emailList.push(client.email);
+            }
+          });
+        }
+        
+        // Add manually entered bulk recipients
+        bulkRecipients.forEach(email => {
+          if (email.trim() && !emailList.includes(email.trim())) {
+            emailList.push(email.trim());
+          }
+        });
+
+        if (emailList.length === 0) {
+          showToast('No valid email addresses found', 'error');
+          setIsSendingBulk(false);
+          return;
+        }
+
+        const sendBulkEmails = httpsCallable(functions, 'sendBulkEmails');
+        const result = await sendBulkEmails({
+          recipients: emailList.map(email => ({ email })),
+          subject: composeData.subject,
+          body: composeData.body,
+          htmlBody: `<div style="font-family:sans-serif;">${composeData.body.replace(/\n/g, '<br/>')}</div>`,
+          senderEmail: userProfile?.email || '',
+          senderName: userProfile?.fullName || userProfile?.companyName || ''
+        });
+
+        const data = result.data as any;
+        
+        // Save to Firestore for tracking
+        for (const recipient of emailList) {
+          await addDoc(collection(db, 'mail'), {
+            to: recipient,
+            fromName: userProfile?.fullName || 'CreaftlyAI User',
+            fromEmail: userProfile?.email || 'hello@craftlyai.app',
+            message: {
+              subject: composeData.subject,
+              text: composeData.body,
+              html: `<div style="font-family:sans-serif;">${composeData.body.replace(/\n/g, '<br/>')}</div>`
+            },
+            metadata: {
+              senderId: auth.currentUser.uid,
+              senderName: userProfile?.fullName || 'CreaftlyAI User'
+            },
+            folder: 'sent',
+            isUnread: false,
+            createdAt: serverTimestamp()
+          });
+        }
+
+        showToast(`Bulk email sent to ${data.sent} recipients`, data.failed > 0 ? 'warning' : 'success');
+        setIsComposeOpen(false);
+        setComposeData({ to: '', subject: '', body: '' });
+        setBulkRecipients([]);
+        setSelectedClients(new Set());
+        setIsBulkMode(false);
+      } catch (error: any) {
+        console.error('Bulk email error:', error);
+        showToast(error.message || 'Bulk email transmission failed', 'error');
+      } finally {
+        setIsSendingBulk(false);
+      }
+      return;
+    }
+
+    // Single email sending
+    if (!composeData.to) {
+      showToast('Recipient email is required', 'error');
       return;
     }
     
     setIsTransmitting(true);
     try {
+      // Try to send via email API first
+      try {
+        const sendBulkEmails = httpsCallable(functions, 'sendBulkEmails');
+        await sendBulkEmails({
+          recipients: [{ email: composeData.to }],
+          subject: composeData.subject,
+          body: composeData.body,
+          htmlBody: `<div style="font-family:sans-serif;">${composeData.body.replace(/\n/g, '<br/>')}</div>`,
+          senderEmail: userProfile?.email || '',
+          senderName: userProfile?.fullName || userProfile?.companyName || ''
+        });
+        showToast('Email sent successfully', 'success');
+      } catch (emailError: any) {
+        console.warn('Email API failed, saving to Firestore:', emailError);
+        // Fallback to Firestore only
+      }
+
+      // Save to Firestore for tracking
       await addDoc(collection(db, 'mail'), {
         to: composeData.to,
-        fromName: userProfile?.fullName || 'Craftly User',
-        fromEmail: userProfile?.email || '',
+        fromName: userProfile?.fullName || 'CreaftlyAI User',
+        fromEmail: userProfile?.email || 'hello@craftlyai.app',
         message: {
           subject: composeData.subject,
           text: composeData.body,
@@ -147,9 +254,9 @@ const EmailApp: React.FC = () => {
         },
         metadata: {
           senderId: auth.currentUser.uid,
-          senderName: userProfile?.fullName || 'Craftly User'
+          senderName: userProfile?.fullName || 'CreaftlyAI User'
         },
-        folder: 'sent', // Explicitly marked for sender
+        folder: 'sent',
         isUnread: false,
         createdAt: serverTimestamp()
       });
@@ -161,6 +268,33 @@ const EmailApp: React.FC = () => {
       showToast('Transmission Error', 'error');
     } finally {
       setIsTransmitting(false);
+    }
+  };
+
+  const handleToggleBulkMode = () => {
+    setIsBulkMode(!isBulkMode);
+    if (!isBulkMode) {
+      setComposeData({ ...composeData, to: '' });
+    }
+  };
+
+  const handleToggleClient = (clientId: string) => {
+    setSelectedClients(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(clientId)) {
+        newSet.delete(clientId);
+      } else {
+        newSet.add(clientId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAddBulkRecipient = () => {
+    const email = composeData.to.trim();
+    if (email && !bulkRecipients.includes(email)) {
+      setBulkRecipients([...bulkRecipients, email]);
+      setComposeData({ ...composeData, to: '' });
     }
   };
 
@@ -187,13 +321,24 @@ const EmailApp: React.FC = () => {
       
       {/* PANE 1: NAVIGATION */}
       <aside className="w-20 lg:w-64 border-r border-[var(--border-ui)] bg-[var(--bg-card)] flex flex-col shrink-0">
-        <div className="p-4 lg:p-6">
+        <div className="p-4 lg:p-6 space-y-3">
           <Button 
             onClick={handleCompose}
             className="w-full h-11 !bg-indigo-600 border-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl"
             icon={Plus}
           >
             <span className="hidden lg:inline">Compose</span>
+          </Button>
+          <Button 
+            onClick={handleToggleBulkMode}
+            className={`w-full h-10 border rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+              isBulkMode 
+                ? '!bg-indigo-500 border-indigo-500 text-white' 
+                : 'border-[var(--border-ui)] text-slate-500 hover:border-indigo-500'
+            }`}
+            icon={Users}
+          >
+            <span className="hidden lg:inline">{isBulkMode ? 'Single' : 'Bulk'}</span>
           </Button>
         </div>
         <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto custom-scroll">
@@ -338,15 +483,92 @@ const EmailApp: React.FC = () => {
           {!isComposeMinimized && (
             <div className="flex flex-col h-[calc(100%-56px)] bg-[var(--bg-card)]">
               <div className="px-8 border-b border-[var(--border-ui)] bg-[var(--bg-canvas)]/30">
-                <div className="flex items-center py-5 border-b border-[var(--border-ui)]/50">
-                  <span className="text-[10px] font-black text-slate-500 uppercase w-12 tracking-widest opacity-60">TO</span>
-                  <input 
-                    type="text" 
-                    className="flex-1 text-sm font-black uppercase outline-none bg-transparent text-[var(--text-primary)]"
-                    value={composeData.to}
-                    onChange={e => setComposeData({...composeData, to: e.target.value})}
-                  />
-                </div>
+                {isBulkMode ? (
+                  <>
+                    <div className="flex items-center py-5 border-b border-[var(--border-ui)]/50 gap-3">
+                      <span className="text-[10px] font-black text-slate-500 uppercase w-12 tracking-widest opacity-60 shrink-0">TO</span>
+                      <div className="flex-1 flex items-center gap-2">
+                        <input 
+                          type="email" 
+                          placeholder="Enter email and press Enter"
+                          className="flex-1 text-sm font-black uppercase outline-none bg-transparent text-[var(--text-primary)] placeholder:text-slate-500/30"
+                          value={composeData.to}
+                          onChange={e => setComposeData({...composeData, to: e.target.value})}
+                          onKeyPress={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddBulkRecipient();
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={handleAddBulkRecipient}
+                          className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-indigo-500 transition-all"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                    {(bulkRecipients.length > 0 || selectedClients.size > 0) && (
+                      <div className="py-4 max-h-32 overflow-y-auto custom-scroll space-y-2">
+                        {bulkRecipients.map((email, idx) => (
+                          <div key={`bulk-${idx}`} className="flex items-center justify-between bg-[var(--bg-card-muted)] px-3 py-2 rounded-lg">
+                            <span className="text-xs font-bold text-[var(--text-primary)]">{email}</span>
+                            <button
+                              onClick={() => setBulkRecipients(bulkRecipients.filter((_, i) => i !== idx))}
+                              className="text-rose-500 hover:text-rose-600"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        {clients.filter(c => selectedClients.has(c.id) && c.email).map(client => (
+                          <div key={client.id} className="flex items-center justify-between bg-indigo-500/10 px-3 py-2 rounded-lg">
+                            <span className="text-xs font-bold text-[var(--text-primary)]">{client.email}</span>
+                            <button
+                              onClick={() => handleToggleClient(client.id)}
+                              className="text-rose-500 hover:text-rose-600"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {clients.length > 0 && (
+                      <div className="py-4 border-t border-[var(--border-ui)]/50 max-h-40 overflow-y-auto custom-scroll">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Select Clients:</p>
+                        <div className="space-y-1">
+                          {clients.filter(c => c.email).map(client => (
+                            <button
+                              key={client.id}
+                              onClick={() => handleToggleClient(client.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-canvas)] transition-all text-left"
+                            >
+                              {selectedClients.has(client.id) ? (
+                                <CheckSquare size={14} className="text-indigo-500" />
+                              ) : (
+                                <Square size={14} className="text-slate-400" />
+                              )}
+                              <span className="text-xs font-bold text-[var(--text-primary)]">{client.name}</span>
+                              <span className="text-[10px] text-slate-500 ml-auto">{client.email}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex items-center py-5 border-b border-[var(--border-ui)]/50">
+                    <span className="text-[10px] font-black text-slate-500 uppercase w-12 tracking-widest opacity-60">TO</span>
+                    <input 
+                      type="email" 
+                      className="flex-1 text-sm font-black uppercase outline-none bg-transparent text-[var(--text-primary)]"
+                      value={composeData.to}
+                      onChange={e => setComposeData({...composeData, to: e.target.value})}
+                    />
+                  </div>
+                )}
                 <div className="flex items-center py-5">
                   <span className="text-[10px] font-black text-slate-500 uppercase w-12 tracking-widest opacity-60">SUB</span>
                   <input 
@@ -372,11 +594,17 @@ const EmailApp: React.FC = () => {
                 <div className="flex items-center gap-4">
                   <button 
                     onClick={handleSend}
-                    disabled={isTransmitting}
+                    disabled={isTransmitting || isSendingBulk}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white h-12 px-10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3 transition-all shadow-2xl active:scale-95 border border-indigo-500/20 disabled:opacity-50"
                   >
-                    {isTransmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    {isTransmitting ? 'Transmitting...' : 'Dispatch Manifesto'}
+                    {(isTransmitting || isSendingBulk) ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    {isSendingBulk 
+                      ? `Sending to ${bulkRecipients.length + selectedClients.size}...` 
+                      : isTransmitting 
+                        ? 'Transmitting...' 
+                        : isBulkMode 
+                          ? `Dispatch to ${bulkRecipients.length + selectedClients.size}` 
+                          : 'Dispatch Manifesto'}
                   </button>
                 </div>
                 <button 
